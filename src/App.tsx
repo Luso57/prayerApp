@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import WelcomeScreen from './Screens/WelcomeScreen';
-import OnboardingFlow from './Screens/Onboarding/OnboardingFlow';
-import MainNavigator from './Screens/Main/MainNavigator';
-import { OnboardingData } from './types/onboarding';
+import React, { useState } from "react";
+import { View, StyleSheet } from "react-native";
+import WelcomeScreen from "./Screens/WelcomeScreen";
+import OnboardingFlow from "./Screens/Onboarding/OnboardingFlow";
+import MainNavigator from "./Screens/Main/MainNavigator";
+import { OnboardingData } from "./types/onboarding";
+import { SubscriptionProvider } from "./contexts/SubscriptionContext";
+import { PrayerLockProvider } from "./contexts/PrayerLockContext";
 
-type AppScreen = 'welcome' | 'onboarding' | 'home';
+type AppScreen = "welcome" | "onboarding" | "home";
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>("welcome");
   const [userData, setUserData] = useState<OnboardingData | null>(null);
 
   // DEV MODE: Set to true to skip straight to main app for development
@@ -17,31 +19,31 @@ export default function App() {
   // Handle "Get Started" from welcome screen
   const handleGetStarted = () => {
     if (DEV_SKIP_TO_HOME) {
-      setCurrentScreen('home');
+      setCurrentScreen("home");
     } else {
-      setCurrentScreen('onboarding');
+      setCurrentScreen("onboarding");
     }
   };
 
   // Handle going back to welcome from onboarding
   const handleBackToWelcome = () => {
-    setCurrentScreen('welcome');
+    setCurrentScreen("welcome");
   };
 
   // Handle onboarding completion
   const handleOnboardingComplete = (data: OnboardingData) => {
-    console.log('Onboarding complete!', data);
+    console.log("Onboarding complete!", data);
     setUserData(data);
-    setCurrentScreen('home');
+    setCurrentScreen("home");
   };
 
   // Render current screen
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'welcome':
+      case "welcome":
         return <WelcomeScreen onGetStarted={handleGetStarted} />;
 
-      case 'onboarding':
+      case "onboarding":
         return (
           <OnboardingFlow
             onComplete={handleOnboardingComplete}
@@ -49,7 +51,7 @@ export default function App() {
           />
         );
 
-      case 'home':
+      case "home":
         return <MainNavigator userName={userData?.name} />;
 
       default:
@@ -57,7 +59,13 @@ export default function App() {
     }
   };
 
-  return <View style={styles.container}>{renderScreen()}</View>;
+  return (
+    <SubscriptionProvider>
+      <PrayerLockProvider>
+        <View style={styles.container}>{renderScreen()}</View>
+      </PrayerLockProvider>
+    </SubscriptionProvider>
+  );
 }
 
 const styles = StyleSheet.create({

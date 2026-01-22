@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-} from 'react-native';
-import { colors, typography, spacing, borderRadius } from '../../../constants/theme';
+} from "react-native";
+import { colors, typography, spacing } from "../../../constants/theme";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 interface OnboardingLayoutProps {
   children: React.ReactNode;
   title: string;
-  titleHighlight?: string;       
+  titleHighlight?: string;
   subtitle?: string;
   currentStep: number;
   totalSteps: number;
@@ -53,12 +53,17 @@ const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      {/* Background decorative circles */}
+      <StatusBar
+        barStyle="light-content"
+        translucent
+        backgroundColor="transparent"
+      />
+
+      {/* Background decorative circles - these extend behind the notch */}
       <View style={styles.circleOne} />
       <View style={styles.circleTwo} />
 
+      {/* SafeAreaView for content only - background extends full screen */}
       <SafeAreaView style={styles.safeArea}>
         {/* Header with back button and progress */}
         <View style={styles.header}>
@@ -104,12 +109,12 @@ const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#CC6F35', // Peachy orange background
+    backgroundColor: "#CC6F35", // Peachy orange background
   },
 
   // Decorative circles
   circleOne: {
-    position: 'absolute',
+    position: "absolute",
     width: width * 1.2,
     height: width * 1.2,
     borderRadius: width * 0.6,
@@ -118,7 +123,7 @@ const styles = StyleSheet.create({
     right: -width * 0.3,
   },
   circleTwo: {
-    position: 'absolute',
+    position: "absolute",
     width: width * 0.8,
     height: width * 0.8,
     borderRadius: width * 0.4,
@@ -133,9 +138,9 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
     paddingTop: 0,
     paddingBottom: spacing.xs,
@@ -145,9 +150,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   backIcon: {
@@ -168,13 +173,13 @@ const styles = StyleSheet.create({
 
   progressBar: {
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 2,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 
   progressFill: {
-    height: '100%',
+    height: "100%",
     backgroundColor: colors.background.cream,
     borderRadius: 2,
   },
@@ -186,11 +191,11 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: typography.size['3xl'],
+    fontSize: typography.size["3xl"],
     fontWeight: typography.weight.regular,
     color: colors.background.cream,
-    textAlign: 'center',
-    lineHeight: typography.size['3xl'] * 1.3,
+    textAlign: "center",
+    lineHeight: typography.size["3xl"] * 1.3,
   },
 
   titleHighlight: {
@@ -199,8 +204,8 @@ const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: typography.size.base,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'center',
+    color: "rgba(255, 255, 255, 0.7)",
+    textAlign: "center",
     marginTop: spacing.sm,
     lineHeight: typography.size.base * 1.5,
   },

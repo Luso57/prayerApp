@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   OnboardingData,
   AgeOption,
@@ -6,18 +6,30 @@ import {
   PrayerStruggleOption,
   PrayerStyleOption,
   initialOnboardingData,
-} from '../../types/onboarding';
+} from "../../types/onboarding";
+import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 
 // Import steps
-import NameStep from './steps/NameStep';
-import AgeStep from './steps/AgeStep';
-import PrayerLifeStep from './steps/PrayerLifeStep';
-import PrayerStruggleStep from './steps/PrayerStruggleStep';
-import PrayerStyleStep from './steps/PrayerStyleStep';
+import NameStep from "./steps/NameStep";
+import AgeStep from "./steps/AgeStep";
+import PrayerLifeStep from "./steps/PrayerLifeStep";
+import PrayerStruggleStep from "./steps/PrayerStruggleStep";
+import PrayerStyleStep from "./steps/PrayerStyleStep";
 
-type OnboardingStep = 'name' | 'age' | 'prayerLife' | 'prayerStruggle' | 'prayerStyle';
+type OnboardingStep =
+  | "name"
+  | "age"
+  | "prayerLife"
+  | "prayerStruggle"
+  | "prayerStyle";
 
-const STEPS: OnboardingStep[] = ['name', 'age', 'prayerLife', 'prayerStruggle', 'prayerStyle'];
+const STEPS: OnboardingStep[] = [
+  "name",
+  "age",
+  "prayerLife",
+  "prayerStruggle",
+  "prayerStyle",
+];
 const TOTAL_STEPS = STEPS.length;
 
 interface OnboardingFlowProps {
@@ -25,7 +37,10 @@ interface OnboardingFlowProps {
   onBack: () => void; // Go back to welcome screen
 }
 
-const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) => {
+const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
+  onComplete,
+  onBack,
+}) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [data, setData] = useState<OnboardingData>(initialOnboardingData);
 
@@ -67,22 +82,55 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
   };
 
   // Handle prayer struggles selection
-  const handlePrayerStruggleSubmit = (prayerStruggles: PrayerStruggleOption[]) => {
+  const handlePrayerStruggleSubmit = (
+    prayerStruggles: PrayerStruggleOption[],
+  ) => {
     setData((prev) => ({ ...prev, prayerStruggles }));
     goToNextStep();
   };
 
   // Handle prayer style selection (final step)
-  const handlePrayerStyleSubmit = (prayerStyle: PrayerStyleOption) => {
+  const handlePrayerStyleSubmit = async (prayerStyle: PrayerStyleOption) => {
     const finalData = { ...data, prayerStyle };
     setData(finalData);
-    onComplete(finalData);
+
+    // Present the paywall - user MUST purchase to continue
+    // This is a hard paywall - no purchase, no entry! 🔒
+    const showPaywallUntilPurchased = async (): Promise<boolean> => {
+      try {
+        const result = await RevenueCatUI.presentPaywall({
+          displayCloseButton: false, // No escape button!
+        });
+
+        // Only allow through if they purchased or restored
+        if (
+          result === PAYWALL_RESULT.PURCHASED ||
+          result === PAYWALL_RESULT.RESTORED
+        ) {
+          return true;
+        }
+
+        // They dismissed or there was an error - show paywall again!
+        return await showPaywallUntilPurchased();
+      } catch (error) {
+        console.log("[Onboarding] Paywall error:", error);
+        // Error occurred - try again
+        return await showPaywallUntilPurchased();
+      }
+    };
+
+    const purchased = await showPaywallUntilPurchased();
+
+    // Only complete onboarding if they paid
+    if (purchased) {
+      onComplete(finalData);
+    }
   };
 
   // Render current step
   const renderStep = () => {
     switch (currentStep) {
-      case 'name':
+      case "name":
         return (
           <NameStep
             value={data.name}
@@ -93,7 +141,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'age':
+      case "age":
         return (
           <AgeStep
             value={data.age}
@@ -104,7 +152,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'prayerLife':
+      case "prayerLife":
         return (
           <PrayerLifeStep
             value={data.prayerLife}
@@ -115,7 +163,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'prayerStruggle':
+      case "prayerStruggle":
         return (
           <PrayerStruggleStep
             value={data.prayerStruggles}
@@ -126,7 +174,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'prayerStyle':
+      case "prayerStyle":
         return (
           <PrayerStyleStep
             value={data.prayerStyle}
