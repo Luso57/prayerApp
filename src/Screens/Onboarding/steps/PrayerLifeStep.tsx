@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Image } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Animated } from 'react-native';
 import OnboardingLayout from '../components/OnboardingLayout';
 import OptionCard from '../components/OptionCard';
 import Button from '../../../Components/Button';
@@ -22,6 +22,24 @@ const PrayerLifeStep: React.FC<PrayerLifeStepProps> = ({
   totalSteps,
 }) => {
   const [selected, setSelected] = React.useState<PrayerLifeOption | null>(value);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.9,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleContinue = () => {
     if (selected) {
@@ -39,9 +57,15 @@ const PrayerLifeStep: React.FC<PrayerLifeStepProps> = ({
       onBack={onBack}
       headerContent={
         <View style={styles.imageContainer}>
-          <Image
+          <Animated.Image
             source={require("../../../../assets/flyingDove.png")}
-            style={styles.image}
+            style={[
+              styles.image,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
             resizeMode="contain"
           />
         </View>
@@ -88,9 +112,8 @@ const styles = StyleSheet.create({
   },
 
   image: {
-    width: 720,
-    height: 100,
-    opacity: 0.9,
+    width: 820,
+    height: 130,
   },
 
   container: {

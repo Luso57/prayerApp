@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Text, Image } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Text, Animated } from 'react-native';
 import OnboardingLayout from '../components/OnboardingLayout';
 import OptionCard from '../components/OptionCard';
 import Button from '../../../Components/Button';
@@ -22,6 +22,24 @@ const PrayerStruggleStep: React.FC<PrayerStruggleStepProps> = ({
   totalSteps,
 }) => {
   const [selected, setSelected] = React.useState<PrayerStruggleOption[]>(value);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.9,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const toggleOption = (id: PrayerStruggleOption) => {
     setSelected((prev) =>
@@ -39,15 +57,21 @@ const PrayerStruggleStep: React.FC<PrayerStruggleStepProps> = ({
     <OnboardingLayout
       title="What makes prayer difficult for you?"
       titleHighlight="difficult"
-      subtitle="Pick any that resonate — we'll help you work through them"
+      subtitle="Pick any that resonates with you."
       currentStep={currentStep}
       totalSteps={totalSteps}
       onBack={onBack}
       headerContent={
         <View style={styles.imageContainer}>
-          <Image
+          <Animated.Image
             source={require("../../../../assets/flyingDove.png")}
-            style={styles.image}
+            style={[
+              styles.image,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
             resizeMode="contain"
           />
         </View>
@@ -97,13 +121,12 @@ const styles = StyleSheet.create({
 
   image: {
     width: 720,
-    height: 100,
-    opacity: 0.9,
+    height: 130,
   },
 
   container: {
     flex: 1,
-    marginTop: -10,
+    marginTop: -30,
   },
 
   selectHint: {
@@ -111,6 +134,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     marginBottom: spacing.md,
+    top: 10,
   },
 
   optionsContainer: {

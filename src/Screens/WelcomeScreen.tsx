@@ -161,13 +161,13 @@ const styles = StyleSheet.create({
 
   curvedEdge: {
     position: 'absolute',
-    top: -35,
-    left: 0,
-    right: 0,
-    height: 70,
+    top: -50,
+    left: -width * 0.1,
+    right: -width * 0.1,
+    height: 100,
     backgroundColor: colors.background.cream,
-    borderTopLeftRadius: borderRadius['2xl'],
-    borderTopRightRadius: borderRadius['2xl'],
+    borderTopLeftRadius: width,
+    borderTopRightRadius: width,
   },
 
   content: {

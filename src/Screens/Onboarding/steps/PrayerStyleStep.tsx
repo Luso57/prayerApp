@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Animated } from 'react-native';
 import OnboardingLayout from '../components/OnboardingLayout';
 import OptionCard from '../components/OptionCard';
 import Button from '../../../Components/Button';
@@ -22,6 +22,24 @@ const PrayerStyleStep: React.FC<PrayerStyleStepProps> = ({
   totalSteps,
 }) => {
   const [selected, setSelected] = React.useState<PrayerStyleOption | null>(value);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.9,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleContinue = () => {
     if (selected) {
@@ -31,12 +49,27 @@ const PrayerStyleStep: React.FC<PrayerStyleStepProps> = ({
 
   return (
     <OnboardingLayout
-      title="Choose your Prayer Style"
-      titleHighlight="Prayer Style"
-      subtitle="How would you like to integrate prayer into your daily routine?"
+      title="How Often Do You Pray?"
+      titleHighlight="Often"
+      subtitle="Let us know your current rhythm so we can help you grow."
       currentStep={currentStep}
       totalSteps={totalSteps}
       onBack={onBack}
+      headerContent={
+        <View style={styles.imageContainer}>
+          <Animated.Image
+            source={require("../../../../assets/DoveHeadTilt.png")}
+            style={[
+              styles.image,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
+            resizeMode="contain"
+          />
+        </View>
+      }
     >
       <View style={styles.container}>
         <ScrollView
@@ -72,6 +105,17 @@ const PrayerStyleStep: React.FC<PrayerStyleStepProps> = ({
 };
 
 const styles = StyleSheet.create({
+  imageContainer: {
+    alignItems: 'center',
+    marginTop: -10,
+    marginBottom: -10,
+  },
+
+  image: {
+    width: 720,
+    height: 120,
+  },
+
   container: {
     flex: 1,
   },

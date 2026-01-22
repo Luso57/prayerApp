@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,57 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Switch,
+  Animated,
 } from 'react-native';
 import { colors, typography, spacing } from '../../constants/theme';
+import EditProfileModal from './components/EditProfileModal';
+import ContactUsModal from './components/ContactUsModal';
 
 const SettingsScreen: React.FC = () => {
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [dailyReminder, setDailyReminder] = React.useState(true);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showContactUs, setShowContactUs] = useState(false);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const handleProfileSave = (name: string) => {
+    // Name is saved in the modal, you can trigger any additional actions here
+    console.log('Profile updated with name:', name);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>settings</Text>
-          <Text style={styles.subtitle}>customize your experience ⚙️</Text>
+          <Text style={styles.title}>Settings</Text>
+          <Text style={styles.subtitle}>Customize your experience ⚙️</Text>
+          <Animated.Image
+            source={require('../../../assets/DoveHandOutLeft.png')}
+            style={[
+              styles.doveImage,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Profile Section */}
@@ -30,31 +66,7 @@ const SettingsScreen: React.FC = () => {
             <SettingsItem
               icon="👤"
               title="Edit Profile"
-              onPress={() => console.log('Edit profile')}
-            />
-            <SettingsItem
-              icon="🙏"
-              title="Prayer Preferences"
-              onPress={() => console.log('Prayer preferences')}
-            />
-          </View>
-        </View>
-
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          <View style={styles.card}>
-            <SettingsToggle
-              icon="🔔"
-              title="Push Notifications"
-              value={notificationsEnabled}
-              onToggle={setNotificationsEnabled}
-            />
-            <SettingsToggle
-              icon="⏰"
-              title="Daily Prayer Reminder"
-              value={dailyReminder}
-              onToggle={setDailyReminder}
+              onPress={() => setShowEditProfile(true)}
             />
           </View>
         </View>
@@ -64,19 +76,9 @@ const SettingsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>App</Text>
           <View style={styles.card}>
             <SettingsItem
-              icon="📱"
-              title="Manage Locked Apps"
-              onPress={() => console.log('Manage apps')}
-            />
-            <SettingsItem
-              icon="🎨"
-              title="Appearance"
-              onPress={() => console.log('Appearance')}
-            />
-            <SettingsItem
-              icon="🔒"
-              title="Privacy"
-              onPress={() => console.log('Privacy')}
+              icon="🔗"
+              title="Apps Linked with PrayerFirst"
+              onPress={() => console.log('Linked apps')}
             />
           </View>
         </View>
@@ -86,37 +88,26 @@ const SettingsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Support</Text>
           <View style={styles.card}>
             <SettingsItem
-              icon="❓"
-              title="Help & FAQ"
-              onPress={() => console.log('Help')}
-            />
-            <SettingsItem
               icon="💬"
               title="Contact Us"
-              onPress={() => console.log('Contact')}
-            />
-            <SettingsItem
-              icon="⭐"
-              title="Rate the App"
-              onPress={() => console.log('Rate')}
+              onPress={() => setShowContactUs(true)}
             />
           </View>
         </View>
 
-        {/* Account Section */}
+        {/* Legal Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionTitle}>Legal</Text>
           <View style={styles.card}>
             <SettingsItem
-              icon="💳"
-              title="Subscription"
-              subtitle="Premium Active"
-              onPress={() => console.log('Subscription')}
+              icon="📄"
+              title="Terms & Services"
+              onPress={() => console.log('Terms')}
             />
             <SettingsItem
-              icon="🔄"
-              title="Restore Purchases"
-              onPress={() => console.log('Restore')}
+              icon="🔒"
+              title="Privacy Policy"
+              onPress={() => console.log('Privacy')}
             />
           </View>
         </View>
@@ -124,6 +115,19 @@ const SettingsScreen: React.FC = () => {
         {/* Version */}
         <Text style={styles.version}>PrayerFirst v1.0.0</Text>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        visible={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        onSave={handleProfileSave}
+      />
+
+      {/* Contact Us Modal */}
+      <ContactUsModal
+        visible={showContactUs}
+        onClose={() => setShowContactUs(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -145,27 +149,6 @@ const SettingsItem: React.FC<{
   </TouchableOpacity>
 );
 
-// Settings Toggle Component
-const SettingsToggle: React.FC<{
-  icon: string;
-  title: string;
-  value: boolean;
-  onToggle: (value: boolean) => void;
-}> = ({ icon, title, value, onToggle }) => (
-  <View style={styles.settingsItem}>
-    <Text style={styles.settingsIcon}>{icon}</Text>
-    <View style={styles.settingsContent}>
-      <Text style={styles.settingsTitle}>{title}</Text>
-    </View>
-    <Switch
-      value={value}
-      onValueChange={onToggle}
-      trackColor={{ false: colors.ui.border, true: colors.primary.light }}
-      thumbColor={value ? colors.primary.main : colors.ui.white}
-    />
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -180,6 +163,15 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+
+  doveImage: {
+    position: 'absolute',
+    top: -5,
+    right: -50,
+    width: 180,
+    height: 140,
+    
   },
 
   title: {

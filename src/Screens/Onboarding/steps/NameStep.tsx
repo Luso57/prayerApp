@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   TextInput,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Image,
+  Animated,
 } from "react-native";
 import OnboardingLayout from "../components/OnboardingLayout";
 import Button from "../../../Components/Button";
@@ -27,6 +27,24 @@ const NameStep: React.FC<NameStepProps> = ({
   totalSteps,
 }) => {
   const [name, setName] = useState(value);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.9,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleContinue = () => {
     if (name.trim()) {
@@ -43,9 +61,15 @@ const NameStep: React.FC<NameStepProps> = ({
       onBack={onBack}
       headerContent={
         <View style={styles.imageContainer}>
-          <Image
+          <Animated.Image
             source={require("../../../../assets/DoveHeadTilt.png")}
-            style={styles.image}
+            style={[
+              styles.image,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
             resizeMode="contain"
           />
         </View>
@@ -92,9 +116,8 @@ const styles = StyleSheet.create({
   },
 
   image: {
-    width:720,
+    width: 720,
     height: 120,
-    opacity: 0.9,
   },
 
   container: {

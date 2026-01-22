@@ -129,20 +129,20 @@ export const prayerStyleOptions: SelectOption<PrayerStyleOption>[] = [
   {
     id: 'daily_devotion',
     emoji: '🌅',
-    title: 'Daily Devotion',
-    subtitle: 'Pray once each morning to unlock all apps until reset',
+    title: 'Once a Day',
+    subtitle: 'Start each morning with a moment of prayer',
   },
   {
     id: 'mindful_moments',
-    emoji: '🧘',
-    title: 'Mindful Moments',
-    subtitle: 'Take a prayer break before each app session',
+    emoji: '✨',
+    title: 'A Few Times a Day',
+    subtitle: 'Pause throughout the day to connect with God',
   },
   {
     id: 'scheduled',
-    emoji: '⏰',
-    title: 'Scheduled Prayer',
-    subtitle: 'Set specific times throughout your day for prayer',
+    emoji: '🔥',
+    title: 'As Often as Possible',
+    subtitle: 'Make prayer a constant part of my routine',
   },
 ];
 

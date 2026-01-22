@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../../constants/theme';
 import Button from '../../Components/Button';
@@ -18,6 +19,24 @@ interface LockedApp {
 
 const LockListScreen: React.FC = () => {
   const [lockedApps, setLockedApps] = useState<LockedApp[]>([]);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handleLockApps = () => {
     // TODO: Implement app selection modal
@@ -33,8 +52,19 @@ const LockListScreen: React.FC = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>your distracting apps</Text>
-          <Text style={styles.subtitle}>choose apps to lock until you pray 🙏</Text>
+          <Text style={styles.title}>Apps on hold</Text>
+          <Text style={styles.subtitle}>these apps wait until you've prayed 🙏</Text>
+          <Animated.Image
+            source={require('../../../assets/FlyingDoveLeft.png')}
+            style={[
+              styles.doveImage,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Locked Apps Card */}
@@ -105,11 +135,23 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+    overflow: 'visible',
   },
 
   header: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
+    overflow: 'visible',
+    zIndex: 1,
+  },
+
+  doveImage: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 180,
+    height: 180,
+    zIndex: 10,
   },
 
   title: {

@@ -1,90 +1,131 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Image,
+  Animated,
 } from 'react-native';
 import { colors, typography, spacing } from '../../constants/theme';
+import PrayerStreakCard from './components/PrayerStreakCard';
+import VerseOfDayCard from './components/VerseOfDayCard';
+import PrayerCard, { Prayer } from './components/PrayerCard';
+import StreakService from '../../Services/StreakService';
+import VerseService from '../../Services/VerseService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const USER_NAME_KEY = '@user_name';
+
+// Sample prayers data - replace with actual data from storage/API
+const samplePrayers: Prayer[] = [
+  {
+    id: '1',
+    title: 'Morning Gratitude',
+    content: 'Thank you Lord for this new day and all the blessings you have given me...',
+    date: new Date(),
+    category: 'Gratitude',
+  },
+  {
+    id: '2',
+    title: 'Prayer for Family',
+    content: 'Lord, please watch over my family and keep them safe and healthy...',
+    date: new Date(Date.now() - 86400000), // Yesterday
+    category: 'Family',
+  },
+  {
+    id: '3',
+    title: 'Guidance for Work',
+    content: 'Father, give me wisdom and clarity as I face challenges at work today...',
+    date: new Date(Date.now() - 86400000 * 3), // 3 days ago
+    category: 'Guidance',
+  },
+];
 
 interface HomeScreenProps {
   userName?: string;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ userName = 'Friend' }) => {
+  const [streak, setStreak] = useState(0);
+  const [verse, setVerse] = useState({ verse: '', reference: '' });
+  const [displayName, setDisplayName] = useState(userName);
+  const bounceAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Load streak, verse, and user name on mount
+    const loadData = async () => {
+      const currentStreak = await StreakService.getAndUpdateStreak();
+      setStreak(currentStreak);
+      
+      const dailyVerse = await VerseService.getVerseOfDay();
+      setVerse(dailyVerse);
+
+      // Load saved user name
+      const savedName = await AsyncStorage.getItem(USER_NAME_KEY);
+      if (savedName) {
+        setDisplayName(savedName);
+      }
+    };
+    loadData();
+
+    Animated.parallel([
+      Animated.spring(bounceAnim, {
+        toValue: 0,
+        friction: 4,
+        tension: 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>Good morning,</Text>
-          <Text style={styles.userName}>{userName} 👋</Text>
+          <Text style={styles.userName}>{displayName} 👋</Text>
+          <Animated.Image
+            source={require('../../../assets/DoveHeadTitleLeft.png')}
+            style={[
+              styles.doveImage,
+              {
+                opacity: opacityAnim,
+                transform: [{ translateY: bounceAnim }],
+              },
+            ]}
+            resizeMode="contain"
+          />
         </View>
+
+        {/* Prayer Streak Card */}
+        <PrayerStreakCard streak={streak} />
 
         {/* Daily Verse Card */}
-        <View style={styles.verseCard}>
-          <Text style={styles.verseLabel}>📖 Verse of the Day</Text>
-          <Text style={styles.verseText}>
-            "Be still, and know that I am God."
-          </Text>
-          <Text style={styles.verseReference}>— Psalm 46:10</Text>
-        </View>
+        <VerseOfDayCard
+          verse={verse.verse}
+          reference={verse.reference}
+        />
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Start Your Day</Text>
-          <View style={styles.quickActions}>
-            <QuickActionCard
-              emoji="🙏"
-              title="Morning Prayer"
-              subtitle="5 min"
-            />
-            <QuickActionCard
-              emoji="📿"
-              title="Guided Prayer"
-              subtitle="10 min"
-            />
-          </View>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Progress</Text>
-          <View style={styles.statsContainer}>
-            <StatCard number="7" label="Day Streak 🔥" />
-            <StatCard number="23" label="Prayers" />
-            <StatCard number="4" label="Hours Saved" />
-          </View>
+        {/* Prayers Section */}
+        <View style={styles.prayersSection}>
+          <Text style={styles.sectionTitle}>Prayers</Text>
+          {samplePrayers.map((prayer) => (
+            <PrayerCard key={prayer.id} prayer={prayer} />
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
-
-// Quick Action Card Component
-const QuickActionCard: React.FC<{
-  emoji: string;
-  title: string;
-  subtitle: string;
-}> = ({ emoji, title, subtitle }) => (
-  <View style={styles.quickActionCard}>
-    <Text style={styles.quickActionEmoji}>{emoji}</Text>
-    <Text style={styles.quickActionTitle}>{title}</Text>
-    <Text style={styles.quickActionSubtitle}>{subtitle}</Text>
-  </View>
-);
-
-// Stat Card Component
-const StatCard: React.FC<{ number: string; label: string }> = ({
-  number,
-  label,
-}) => (
-  <View style={styles.statCard}>
-    <Text style={styles.statNumber}>{number}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -102,6 +143,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
 
+  doveImage: {
+    position: 'absolute',
+    top: 0,
+    right: -spacing.md,
+    width: 150,
+    height: 110,
+  },
+
   greeting: {
     fontSize: typography.size.lg,
     color: colors.text.secondary,
@@ -113,35 +162,9 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
 
-  verseCard: {
-    backgroundColor: colors.primary.soft,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-
-  verseLabel: {
-    fontSize: typography.size.sm,
-    color: colors.primary.main,
-    marginBottom: spacing.sm,
-  },
-
-  verseText: {
-    fontSize: typography.size.lg,
-    fontStyle: 'italic',
-    color: colors.text.primary,
-    lineHeight: 28,
-    marginBottom: spacing.sm,
-  },
-
-  verseReference: {
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
-    textAlign: 'right',
-  },
-
-  section: {
-    marginBottom: spacing.xl,
+  prayersSection: {
+    marginTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
 
   sectionTitle: {
@@ -149,71 +172,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.semibold,
     color: colors.text.primary,
     marginBottom: spacing.md,
-  },
-
-  quickActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: colors.ui.white,
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-
-  quickActionEmoji: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-
-  quickActionTitle: {
-    fontSize: typography.size.base,
-    fontWeight: typography.weight.medium,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
-
-  quickActionSubtitle: {
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
-  },
-
-  statsContainer: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.ui.white,
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-
-  statNumber: {
-    fontSize: typography.size['2xl'],
-    fontWeight: typography.weight.bold,
-    color: colors.primary.main,
-  },
-
-  statLabel: {
-    fontSize: typography.size.xs,
-    color: colors.text.secondary,
-    textAlign: 'center',
   },
 });
 

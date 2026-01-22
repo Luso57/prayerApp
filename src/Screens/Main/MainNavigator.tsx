@@ -7,11 +7,10 @@ import {
 } from 'react-native';
 import { colors, typography, spacing } from '../../constants/theme';
 import HomeScreen from './HomeScreen';
-import InsightsScreen from './InsightsScreen';
 import LockListScreen from './LockListScreen';
 import SettingsScreen from './SettingsScreen';
 
-type TabName = 'home' | 'insights' | 'lockList' | 'settings';
+type TabName = 'home' | 'lockList' | 'settings';
 
 interface TabConfig {
   name: TabName;
@@ -22,7 +21,6 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { name: 'home', label: 'home', icon: '🏠', activeIcon: '🏠' },
-  { name: 'insights', label: 'insights', icon: '📊', activeIcon: '📊' },
   { name: 'lockList', label: 'lock list', icon: '🔒', activeIcon: '🔓' },
   { name: 'settings', label: 'settings', icon: '⚙️', activeIcon: '⚙️' },
 ];
@@ -38,8 +36,6 @@ const MainNavigator: React.FC<MainNavigatorProps> = ({ userName }) => {
     switch (activeTab) {
       case 'home':
         return <HomeScreen userName={userName} />;
-      case 'insights':
-        return <InsightsScreen />;
       case 'lockList':
         return <LockListScreen />;
       case 'settings':
@@ -58,44 +54,31 @@ const MainNavigator: React.FC<MainNavigatorProps> = ({ userName }) => {
       <View style={styles.tabBar}>
         {TABS.map((tab) => {
           const isActive = activeTab === tab.name;
-          const isLockList = tab.name === 'lockList';
 
           return (
             <TouchableOpacity
               key={tab.name}
-              style={[
-                styles.tabItem,
-                isLockList && styles.tabItemCenter,
-              ]}
+              style={styles.tabItem}
               onPress={() => setActiveTab(tab.name)}
             >
-              {isLockList ? (
-                // Special styling for lock list tab (center button)
-                <View style={[
-                  styles.centerButton,
-                  isActive && styles.centerButtonActive,
+              {/* Orange circle highlight for active tab */}
+              <View style={[
+                styles.iconContainer,
+                isActive && styles.iconContainerActive,
+              ]}>
+                <Text style={[
+                  styles.tabIcon,
+                  isActive && styles.tabIconActive,
                 ]}>
-                  <Text style={styles.centerButtonIcon}>
-                    {isActive ? tab.activeIcon : tab.icon}
-                  </Text>
-                </View>
-              ) : (
-                // Regular tab
-                <>
-                  <Text style={[
-                    styles.tabIcon,
-                    isActive && styles.tabIconActive,
-                  ]}>
-                    {isActive ? tab.activeIcon : tab.icon}
-                  </Text>
-                  <Text style={[
-                    styles.tabLabel,
-                    isActive && styles.tabLabelActive,
-                  ]}>
-                    {tab.label}
-                  </Text>
-                </>
-              )}
+                  {isActive ? tab.activeIcon : tab.icon}
+                </Text>
+              </View>
+              <Text style={[
+                styles.tabLabel,
+                isActive && styles.tabLabelActive,
+              ]}>
+                {tab.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -134,9 +117,26 @@ const styles = StyleSheet.create({
     marginTop: -20, // Lift the center button
   },
 
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+
+  iconContainerActive: {
+    backgroundColor: colors.primary.main,
+    shadowColor: colors.primary.main,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
   tabIcon: {
     fontSize: 24,
-    marginBottom: 4,
     opacity: 0.5,
   },
 
@@ -152,28 +152,6 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: colors.primary.main,
     fontWeight: typography.weight.medium,
-  },
-
-  centerButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary.main,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary.main,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-
-  centerButtonActive: {
-    backgroundColor: colors.primary.light,
-  },
-
-  centerButtonIcon: {
-    fontSize: 24,
   },
 });
 
