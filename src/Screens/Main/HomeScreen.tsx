@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -8,11 +14,14 @@ import {
   Animated,
   Image,
   Modal,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { typography, spacing } from "../../constants/theme";
 import { useTheme } from "../../contexts/ThemeContext";
 import VerseService from "../../Services/VerseService";
+import StreakService from "../../Services/StreakService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USER_NAME_KEY = "@user_name";
@@ -32,15 +41,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const [verse, setVerse] = useState({ verse: "", reference: "" });
   const [displayName, setDisplayName] = useState(userName);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [lastPrayerTime, setLastPrayerTime] = useState<string>("Never");
+  const [weekDays, setWeekDays] = useState<
+    Array<{ day: string; completed: boolean; isToday: boolean }>
+  >([]);
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  // Mock stats data - will be replaced with real data later
+  // Stats data - streak is real, others are mock for now
   const stats = {
     totalPrayers: 47,
     totalTimeMinutes: 142,
-    currentStreak: 3,
-    longestStreak: 12,
+    currentStreak: currentStreak,
+    longestStreak: longestStreak,
     weeklyCompleted: 3,
     weeklyGoal: 7,
     averageDuration: "3 min",
@@ -52,19 +67,84 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const lockedSinceTime = "9:12 PM";
   const prayerFocus = "Morning Gratitude";
   const suggestedDuration = "2 minutes";
-  const lastPrayerTime = "Yesterday at 10:41 PM";
 
-  // Week data - days with completed prayers
-  const weekDays = [
-    { day: "Mon", completed: true },
-    { day: "Tue", completed: true },
-    { day: "Wed", completed: true },
-    { day: "Thu", completed: false, isToday: true },
-    { day: "Fri", completed: false },
-    { day: "Sat", completed: false },
-    { day: "Sun", completed: false },
-    { day: "Mon", completed: false },
-  ];
+  // Generate week days (Mon-Sun) with completion status
+  const generateWeekDays = useCallback((prayerHistory: Set<string>) => {
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+
+    // Get Monday of current week
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ...
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - daysFromMonday);
+
+    return dayNames.map((day, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      const dateStr = date.toISOString().split("T")[0];
+
+      return {
+        day,
+        completed: prayerHistory.has(dateStr),
+        isToday: dateStr === todayStr,
+      };
+    });
+  }, []);
+
+  // Format last prayer time in a user-friendly way
+  const formatLastPrayerTime = useCallback((date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60)
+      return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+    if (diffHours < 24)
+      return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    if (diffDays === 1) return `Yesterday at ${timeStr}`;
+    if (diffDays < 7) return `${diffDays} days ago at ${timeStr}`;
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }, []);
+
+  // Load prayer-related data (can be called on mount and on focus)
+  const loadPrayerData = useCallback(async () => {
+    // Load streak data
+    const streak = await StreakService.getCurrentStreak();
+    const longest = await StreakService.getLongestStreak();
+    setCurrentStreak(streak);
+    setLongestStreak(longest);
+
+    // Load last prayer time
+    const lastPrayerTimestamp = await StreakService.getLastPrayerTimestamp();
+    if (lastPrayerTimestamp) {
+      setLastPrayerTime(formatLastPrayerTime(lastPrayerTimestamp));
+    } else {
+      setLastPrayerTime("Never");
+    }
+
+    // Load week calendar with prayer history
+    const prayerHistory = await StreakService.getWeekPrayerHistory();
+    setWeekDays(generateWeekDays(prayerHistory));
+  }, [formatLastPrayerTime, generateWeekDays]);
 
   useEffect(() => {
     // Animate the dove
@@ -90,9 +170,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       if (savedName) {
         setDisplayName(savedName);
       }
+
+      await loadPrayerData();
     };
     loadData();
-  }, []);
+  }, [loadPrayerData]);
+
+  // Refresh prayer data when app comes back to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState: AppStateStatus) => {
+        if (nextAppState === "active") {
+          loadPrayerData();
+        }
+      },
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [loadPrayerData]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -135,9 +233,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={styles.halfCardsRow}>
           {/* Streak Card */}
           <View style={styles.halfCardStreak}>
-            <Text style={styles.streakNumber}>3</Text>
-            <Text style={styles.streakLabel}>day streak 🔥</Text>
-            <Text style={styles.halfCardSubtext}>Keep it going!</Text>
+            <Text style={styles.streakNumber}>{currentStreak}</Text>
+            <Text style={styles.streakLabel}>
+              {currentStreak === 1 ? "day streak" : "day streak"} 🔥
+            </Text>
+            <Text style={styles.halfCardSubtext}>
+              {currentStreak === 0 ? "Start praying!" : "Keep it going!"}
+            </Text>
           </View>
           {/* Stats Card */}
           <TouchableOpacity
@@ -152,21 +254,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Today's Prayer Section */}
         <View style={styles.todaysPrayerCard}>
-          <Text style={styles.sectionTitle}>Today's Prayer</Text>
-          <View style={styles.prayerInfoRow}>
-            <Text style={styles.prayerInfoIcon}>👏</Text>
-            <Text style={styles.prayerInfoText}>
-              Focus: <Text style={styles.prayerInfoBold}>{prayerFocus}</Text>
-            </Text>
-            <Text style={styles.prayerInfoIcon}>👏</Text>
-          </View>
-          <View style={styles.prayerInfoRow}>
-            <Text style={styles.prayerInfoIcon}>⏱️</Text>
-            <Text style={styles.prayerInfoText}>
-              Suggested duration:{" "}
-              <Text style={styles.prayerInfoBold}>{suggestedDuration}</Text>
-            </Text>
-          </View>
+          <Text style={styles.sectionTitle}>Daily Prayer's...</Text>
+
           <View style={styles.prayerInfoRow}>
             <Text style={styles.prayerInfoIcon}>🕐</Text>
             <Text style={styles.prayerInfoText}>
@@ -182,7 +271,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                   style={[
                     styles.dayCircle,
                     item.completed && styles.dayCircleCompleted,
-                    item.isToday && styles.dayCircleToday,
+                    item.isToday && !item.completed && styles.dayCircleToday,
                   ]}
                 >
                   {item.completed ? (

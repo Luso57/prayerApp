@@ -10,6 +10,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { typography, spacing } from "../../constants/theme";
 import { useTheme } from "../../contexts/ThemeContext";
 import PrayerService from "../../Services/PrayerService";
+import StreakService from "../../Services/StreakService";
+import JournalEntryModal from "../../Components/JournalEntryModal";
 
 interface PrayerScreenProps {
   categoryId: string;
@@ -24,6 +26,9 @@ const PrayerScreen: React.FC<PrayerScreenProps> = ({ categoryId, onExit }) => {
   const [timeLeft, setTimeLeft] = useState(15);
   const [isComplete, setIsComplete] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [showCompletionScreen, setShowCompletionScreen] = useState(false);
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
 
   useEffect(() => {
     const loadPrayer = () => {
@@ -31,6 +36,14 @@ const PrayerScreen: React.FC<PrayerScreenProps> = ({ categoryId, onExit }) => {
         PrayerService.getRandomPrayerByCategory(categoryId);
       if (selectedPrayer) {
         setPrayer({ title: selectedPrayer.title, text: selectedPrayer.text });
+      }
+      // Get category name for display
+      const categories = PrayerService.getAllCategories();
+      const category = categories.find(
+        (c: { id: string; label: string }) => c.id === categoryId,
+      );
+      if (category) {
+        setCategoryName(category.label);
       }
     };
     loadPrayer();
@@ -56,10 +69,85 @@ const PrayerScreen: React.FC<PrayerScreenProps> = ({ categoryId, onExit }) => {
     setHasStarted(true);
   };
 
-  const handleCompletePrayer = () => {
-    // TODO: Save prayer completion, unlock apps, update streak
+  const handleCompletePrayer = async () => {
+    try {
+      // Record the prayer completion for streak tracking
+      await StreakService.recordPrayerCompletion();
+      // Show completion screen instead of exiting immediately
+      setShowCompletionScreen(true);
+    } catch (error) {
+      console.error("Error in handleCompletePrayer:", error);
+      // Still show completion screen even if there's an error
+      setShowCompletionScreen(true);
+    }
+  };
+
+  const handleJournalEntry = () => {
+    setShowJournalModal(true);
+  };
+
+  const handleJournalSave = () => {
+    setShowJournalModal(false);
     onExit();
   };
+
+  const handleContinue = () => {
+    onExit();
+  };
+
+  // Completion Screen
+  if (showCompletionScreen) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.completionContainer}>
+          <View style={styles.completionContent}>
+            <Text style={styles.completionIcon}>✨</Text>
+            <Text style={styles.completionTitle}>Beautiful!</Text>
+            <Text style={styles.completionSubtitle}>
+              You've deepened your relationship with God
+            </Text>
+            <Text style={styles.completionMessage}>
+              Taking time to pray shows your commitment to your spiritual
+              journey. Keep nurturing this sacred connection.
+            </Text>
+          </View>
+
+          <View style={styles.completionActions}>
+            <TouchableOpacity
+              style={styles.journalButton}
+              onPress={handleJournalEntry}
+            >
+              <Text style={styles.journalButtonIcon}>📓</Text>
+              <View style={styles.journalButtonTextContainer}>
+                <Text style={styles.journalButtonTitle}>
+                  Reflect in Journal
+                </Text>
+                <Text style={styles.journalButtonSubtitle}>
+                  Capture your thoughts from this prayer
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={handleContinue}
+            >
+              <Text style={styles.continueButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Journal Entry Modal */}
+        <JournalEntryModal
+          visible={showJournalModal}
+          onClose={() => setShowJournalModal(false)}
+          onSave={handleJournalSave}
+          prayerCategory={categoryName}
+          prefillText={`Just finished praying about ${categoryName.toLowerCase()}. ${prayer.title}: "${prayer.text.substring(0, 100)}..."\n\nMy reflection: `}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -79,10 +167,14 @@ const PrayerScreen: React.FC<PrayerScreenProps> = ({ categoryId, onExit }) => {
         {/* Prayer Card */}
         <View style={styles.prayerCard}>
           <Text style={styles.prayerIcon}>🙏</Text>
-          <View style={styles.verseContainer}>
+          <ScrollView
+            style={styles.verseScrollContainer}
+            contentContainerStyle={styles.verseContainer}
+            showsVerticalScrollIndicator={false}
+          >
             <Text style={styles.prayerTitle}>{prayer.title}</Text>
             <Text style={styles.verseText}>{prayer.text}</Text>
-          </View>
+          </ScrollView>
         </View>
 
         {/* Start Prayer Button, Countdown Timer, or Complete Button */}
@@ -187,18 +279,23 @@ const createStyles = (colors: any) =>
       shadowOpacity: 0.08,
       shadowRadius: 12,
       elevation: 4,
-      minHeight: 500,
-      justifyContent: "center",
-      alignItems: "center",
+      maxHeight: 500,
     },
 
     prayerIcon: {
       fontSize: 48,
       marginBottom: spacing.lg,
+      textAlign: "center",
+    },
+
+    verseScrollContainer: {
+      maxHeight: 380,
+      width: "100%",
     },
 
     verseContainer: {
       alignItems: "center",
+      paddingBottom: spacing.md,
     },
 
     prayerTitle: {
@@ -286,6 +383,103 @@ const createStyles = (colors: any) =>
     },
 
     completeButtonText: {
+      fontSize: typography.size.lg,
+      fontWeight: typography.weight.bold,
+      color: colors.ui.white,
+    },
+
+    // Completion Screen Styles
+    completionContainer: {
+      flex: 1,
+      justifyContent: "space-between",
+      padding: spacing.lg,
+    },
+
+    completionContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: spacing.lg,
+    },
+
+    completionIcon: {
+      fontSize: 80,
+      marginBottom: spacing.xl,
+    },
+
+    completionTitle: {
+      fontSize: typography.size["4xl"],
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+      marginBottom: spacing.sm,
+      textAlign: "center",
+    },
+
+    completionSubtitle: {
+      fontSize: typography.size.xl,
+      fontWeight: typography.weight.semibold,
+      color: colors.primary.main,
+      marginBottom: spacing.lg,
+      textAlign: "center",
+    },
+
+    completionMessage: {
+      fontSize: typography.size.base,
+      color: colors.text.secondary,
+      textAlign: "center",
+      lineHeight: 24,
+      paddingHorizontal: spacing.md,
+    },
+
+    completionActions: {
+      paddingBottom: spacing.xl,
+    },
+
+    journalButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.ui.white,
+      borderRadius: 16,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      borderWidth: 2,
+      borderColor: colors.primary.main,
+    },
+
+    journalButtonIcon: {
+      fontSize: 36,
+      marginRight: spacing.md,
+    },
+
+    journalButtonTextContainer: {
+      flex: 1,
+    },
+
+    journalButtonTitle: {
+      fontSize: typography.size.lg,
+      fontWeight: typography.weight.semibold,
+      color: colors.text.primary,
+      marginBottom: 2,
+    },
+
+    journalButtonSubtitle: {
+      fontSize: typography.size.sm,
+      color: colors.text.secondary,
+    },
+
+    continueButton: {
+      backgroundColor: colors.primary.main,
+      borderRadius: 16,
+      paddingVertical: spacing.lg,
+      alignItems: "center",
+      shadowColor: colors.primary.main,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+
+    continueButtonText: {
       fontSize: typography.size.lg,
       fontWeight: typography.weight.bold,
       color: colors.ui.white,

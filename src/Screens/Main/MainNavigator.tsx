@@ -7,8 +7,9 @@ import LockListScreen from "./LockListScreen";
 import SettingsScreen from "./SettingsScreen";
 import PrayerScreen from "./PrayerScreen";
 import PrayerCategoryScreen from "./PrayerCategoryScreen";
+import JournalScreen from "./JournalScreen";
 
-type TabName = "home" | "lockList" | "settings";
+type TabName = "home" | "journal" | "lockList" | "settings";
 
 interface TabConfig {
   name: TabName;
@@ -19,6 +20,7 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   { name: "home", label: "home", icon: "🏠", activeIcon: "🏠" },
+  { name: "journal", label: "journal", icon: "📓", activeIcon: "📓" },
   { name: "lockList", label: "lock list", icon: "🔒", activeIcon: "🔓" },
   { name: "settings", label: "settings", icon: "⚙️", activeIcon: "⚙️" },
 ];
@@ -35,16 +37,20 @@ const MainNavigator: React.FC<MainNavigatorProps> = ({ userName }) => {
   const [showPrayerCategoryScreen, setShowPrayerCategoryScreen] =
     useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [homeRefreshKey, setHomeRefreshKey] = useState(0);
 
   const renderScreen = () => {
     switch (activeTab) {
       case "home":
         return (
           <HomeScreen
+            key={homeRefreshKey}
             userName={userName}
             onStartPrayer={() => setShowPrayerCategoryScreen(true)}
           />
         );
+      case "journal":
+        return <JournalScreen />;
       case "lockList":
         return <LockListScreen />;
       case "settings":
@@ -52,6 +58,7 @@ const MainNavigator: React.FC<MainNavigatorProps> = ({ userName }) => {
       default:
         return (
           <HomeScreen
+            key={homeRefreshKey}
             userName={userName}
             onStartPrayer={() => setShowPrayerCategoryScreen(true)}
           />
@@ -66,6 +73,8 @@ const MainNavigator: React.FC<MainNavigatorProps> = ({ userName }) => {
 
   const handlePrayerExit = () => {
     setSelectedCategory(null);
+    // Increment refresh key to force HomeScreen to reload data
+    setHomeRefreshKey((prev) => prev + 1);
   };
 
   // If category is selected, show PrayerScreen
