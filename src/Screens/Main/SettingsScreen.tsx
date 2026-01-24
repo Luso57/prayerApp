@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,19 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
-} from 'react-native';
-import { colors, typography, spacing } from '../../constants/theme';
-import EditProfileModal from './components/EditProfileModal';
-import ContactUsModal from './components/ContactUsModal';
+  Alert,
+} from "react-native";
+import { colors, typography, spacing } from "../../constants/theme";
+import EditProfileModal from "./components/EditProfileModal";
+import ContactUsModal from "./components/ContactUsModal";
+import { useSubscription } from "../../contexts/SubscriptionContext";
 
 const SettingsScreen: React.FC = () => {
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showContactUs, setShowContactUs] = useState(false);
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const { isPro, presentCustomerCenter, restore } = useSubscription();
 
   useEffect(() => {
     Animated.parallel([
@@ -36,18 +39,37 @@ const SettingsScreen: React.FC = () => {
 
   const handleProfileSave = (name: string) => {
     // Name is saved in the modal, you can trigger any additional actions here
-    console.log('Profile updated with name:', name);
+    console.log("Profile updated with name:", name);
+  };
+
+  const handleManageSubscription = async () => {
+    await presentCustomerCenter();
+  };
+
+  const handleRestorePurchases = async () => {
+    const success = await restore();
+    if (success) {
+      Alert.alert("Success", "Your purchases have been restored!");
+    } else {
+      Alert.alert(
+        "No Purchases Found",
+        "We couldn't find any previous purchases associated with your account.",
+      );
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
           <Text style={styles.subtitle}>Customize your experience ⚙️</Text>
           <Animated.Image
-            source={require('../../../assets/DoveHandOutLeft.png')}
+            source={require("../../../assets/DoveHandOutLeft.png")}
             style={[
               styles.doveImage,
               {
@@ -71,6 +93,24 @@ const SettingsScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Subscription Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          <View style={styles.card}>
+            <SettingsItem
+              icon="⭐"
+              title="Manage Subscription"
+              subtitle={isPro ? "PrayerFirst Pro Active" : "Not subscribed"}
+              onPress={handleManageSubscription}
+            />
+            <SettingsItem
+              icon="🔄"
+              title="Restore Purchases"
+              onPress={handleRestorePurchases}
+            />
+          </View>
+        </View>
+
         {/* App Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App</Text>
@@ -78,7 +118,7 @@ const SettingsScreen: React.FC = () => {
             <SettingsItem
               icon="🔗"
               title="Apps Linked with PrayerFirst"
-              onPress={() => console.log('Linked apps')}
+              onPress={() => console.log("Linked apps")}
             />
           </View>
         </View>
@@ -102,12 +142,12 @@ const SettingsScreen: React.FC = () => {
             <SettingsItem
               icon="📄"
               title="Terms & Services"
-              onPress={() => console.log('Terms')}
+              onPress={() => console.log("Terms")}
             />
             <SettingsItem
               icon="🔒"
               title="Privacy Policy"
-              onPress={() => console.log('Privacy')}
+              onPress={() => console.log("Privacy")}
             />
           </View>
         </View>
@@ -166,16 +206,15 @@ const styles = StyleSheet.create({
   },
 
   doveImage: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: -50,
     width: 180,
     height: 140,
-    
   },
 
   title: {
-    fontSize: typography.size['3xl'],
+    fontSize: typography.size["3xl"],
     fontWeight: typography.weight.bold,
     color: colors.text.primary,
   },
@@ -194,7 +233,7 @@ const styles = StyleSheet.create({
     fontSize: typography.size.sm,
     fontWeight: typography.weight.semibold,
     color: colors.text.secondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
     marginLeft: spacing.xs,
@@ -203,8 +242,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.ui.white,
     borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -212,8 +251,8 @@ const styles = StyleSheet.create({
   },
 
   settingsItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.background.cream,
@@ -248,7 +287,7 @@ const styles = StyleSheet.create({
   version: {
     fontSize: typography.size.sm,
     color: colors.text.muted,
-    textAlign: 'center',
+    textAlign: "center",
     marginVertical: spacing.xl,
   },
 });
