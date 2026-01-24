@@ -1,48 +1,34 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Animated,
-  Alert,
-  Platform,
-} from "react-native";
-import {
-  colors,
-  typography,
-  spacing,
   borderRadius,
+  colors,
+  spacing,
+  typography,
 } from "../../constants/theme";
-import Button from "../../Components/Button";
-import ScreenTimeService from "../../Services/ScreenTimeService";
+import {
+  lockPickedApps,
+  pickAppsToLock,
+  requestScreenTimePermission,
+  unlockAllApps,
+} from "../../Services/ScreenTimeService";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const LockListScreen: React.FC = () => {
   const [lockedAppsCount, setLockedAppsCount] = useState(0);
   const [lockedCategoriesCount, setLockedCategoriesCount] = useState(0);
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  // Check authorization status and locked apps on mount
-  useEffect(() => {
-    checkAuthorizationAndLoadApps();
-  }, []);
-
-  const checkAuthorizationAndLoadApps = async () => {
-    if (Platform.OS !== "ios") return;
-
-    const authorized = await ScreenTimeService.isAuthorized();
-    setIsAuthorized(authorized);
-
-    if (authorized) {
-      const counts = await ScreenTimeService.getLockedAppsCount();
-      setLockedAppsCount(counts.appsCount);
-      setLockedCategoriesCount(counts.categoriesCount);
-    }
-  };
 
   useEffect(() => {
     Animated.parallel([
@@ -60,54 +46,41 @@ const LockListScreen: React.FC = () => {
     ]).start();
   }, []);
 
-  const handleLockApps = useCallback(async () => {
-    if (Platform.OS !== "ios") {
-      Alert.alert(
-        "Not Available",
-        "App locking is only available on iOS devices.",
-      );
-      return;
-    }
+  const handleLockApps = async () => {
+    setIsLoading(true);
+    try {
+      // Step 1: Request Screen Time authorization
+      await requestScreenTimePermission();
 
-    // Check if Screen Time is available
-    if (!ScreenTimeService.isAvailable()) {
-      Alert.alert(
-        "Not Available",
-        "Screen Time features are not available on this device.",
-      );
-      return;
-    }
+      // Step 2: Show Apple's app picker UI
+      await pickAppsToLock();
 
-    // Request authorization if not already authorized
-    if (!isAuthorized) {
-      const authorized = await ScreenTimeService.requestAuthorization();
-      if (!authorized) {
-        Alert.alert(
-          "Authorization Required",
-          "Please allow PrayerFirst to access Screen Time in your device settings to lock apps.",
-        );
+      // Step 3: Apply the shield (lock the apps)
+      await lockPickedApps();
+
+      // Update local state (you could also track this in AsyncStorage)
+      setLockedAppsCount((prev) => prev + 1);
+
+      Alert.alert(
+        "Apps Locked! 🔒",
+        "Selected apps will be locked until you complete your daily prayer.",
+      );
+    } catch (error: any) {
+      if (error.message?.includes("CANCELLED")) {
+        // User cancelled the picker - no error needed
         return;
       }
-      setIsAuthorized(true);
+      console.error("Lock apps error:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to lock apps. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    // Present the app picker
-    const result = await ScreenTimeService.presentAppPicker();
-
-    if (result && result.success) {
-      setLockedAppsCount(result.appsSelected);
-      setLockedCategoriesCount(result.categoriesSelected);
-
-      if (result.appsSelected > 0 || result.categoriesSelected > 0) {
-        Alert.alert(
-          "Apps Locked! 🔒",
-          `${result.appsSelected} app(s) and ${result.categoriesSelected} category(ies) will be locked until you complete your daily prayer.`,
-        );
-      }
-    }
-  }, [isAuthorized]);
-
-  const handleUnlockAll = useCallback(async () => {
+  const handleUnlockAll = () => {
     Alert.alert(
       "Unlock All Apps?",
       "Are you sure you want to remove all app restrictions?",
@@ -117,19 +90,24 @@ const LockListScreen: React.FC = () => {
           text: "Unlock All",
           style: "destructive",
           onPress: async () => {
-            await ScreenTimeService.clearRestrictions();
-            setLockedAppsCount(0);
-            setLockedCategoriesCount(0);
+            try {
+              await unlockAllApps();
+              setLockedAppsCount(0);
+              setLockedCategoriesCount(0);
+              Alert.alert("Success", "All apps have been unlocked.");
+            } catch (error: any) {
+              Alert.alert("Error", "Failed to unlock apps.");
+            }
           },
         },
       ],
     );
-  }, []);
+  };
 
   const totalLocked = lockedAppsCount + lockedCategoriesCount;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -140,17 +118,21 @@ const LockListScreen: React.FC = () => {
           <Text style={styles.subtitle}>
             these apps wait until you've prayed 🙏
           </Text>
-          <Animated.Image
-            source={require("../../../assets/FlyingDoveLeft.png")}
+          <Animated.View
             style={[
-              styles.doveImage,
+              styles.doveContainer,
               {
                 opacity: opacityAnim,
                 transform: [{ translateY: bounceAnim }],
               },
             ]}
-            resizeMode="contain"
-          />
+          >
+            <Image
+              source={require("../../../assets/FlyingDoveLeft.png")}
+              style={styles.doveImage}
+              resizeMode="contain"
+            />
+          </Animated.View>
         </View>
 
         {/* Locked Apps Card */}
@@ -206,13 +188,22 @@ const LockListScreen: React.FC = () => {
 
       {/* Bottom Button */}
       <View style={styles.bottomContainer}>
-        <Button
-          title={totalLocked > 0 ? "edit locked apps" : "lock apps"}
+        <TouchableOpacity
+          style={[
+            styles.primaryButton,
+            isLoading && styles.primaryButtonDisabled,
+          ]}
           onPress={handleLockApps}
-          variant="primary"
-          size="lg"
-          fullWidth
-        />
+          disabled={isLoading}
+        >
+          <Text style={styles.primaryButtonText}>
+            {isLoading
+              ? "Loading..."
+              : totalLocked > 0
+                ? "edit locked apps"
+                : "lock apps"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -237,13 +228,16 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 
-  doveImage: {
+  doveContainer: {
     position: "absolute",
     top: -50,
     right: -50,
+    zIndex: 10,
+  },
+
+  doveImage: {
     width: 180,
     height: 180,
-    zIndex: 10,
   },
 
   title: {
@@ -424,6 +418,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
     backgroundColor: colors.background.cream,
+  },
+
+  primaryButton: {
+    backgroundColor: colors.primary.main,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+  },
+
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  primaryButtonText: {
+    color: colors.ui.white,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
   },
 });
 

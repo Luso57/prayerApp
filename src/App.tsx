@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Linking,
+  Alert,
+} from "react-native";
 import WelcomeScreen from "./Screens/WelcomeScreen";
 import OnboardingFlow from "./Screens/Onboarding/OnboardingFlow";
 import PaywallScreen from "./Screens/PaywallScreen";
@@ -10,17 +16,98 @@ import {
   useSubscription,
 } from "./contexts/SubscriptionContext";
 import { colors } from "./constants/theme";
+import {
+  ensureNotificationPermission,
+  addNotificationResponseListener,
+  getInitialNotificationDeeplink,
+} from "./Services/NotificationService";
 
 type AppScreen = "loading" | "welcome" | "onboarding" | "paywall" | "home";
+
+// Deep link prefix for the app
+const DEEP_LINK_PREFIX = "prayerlock://";
 
 function AppContent() {
   const { isInitialized, isLoading, isPro } = useSubscription();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("loading");
   const [userData, setUserData] = useState<OnboardingData | null>(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
 
   // DEV MODE: Set to true to skip straight to main app for development
   const DEV_SKIP_TO_HOME = false; // Change to true to skip onboarding
+
+  // Handle deep link navigation
+  const handleDeepLink = useCallback(
+    (url: string) => {
+      console.log("Deep link received:", url);
+
+      if (url.startsWith(DEEP_LINK_PREFIX)) {
+        const path = url.replace(DEEP_LINK_PREFIX, "");
+
+        if (path === "pray" || path.startsWith("pray")) {
+          // If user is already in home screen, navigate to pray tab
+          if (currentScreen === "home") {
+            // MainNavigator will handle showing the prayer screen
+            // You can pass this via context or props
+            console.log("Navigating to prayer screen");
+            Alert.alert(
+              "Time to Pray 🙏",
+              "Complete your prayer to unlock your apps.",
+              [{ text: "Let's Go", style: "default" }],
+            );
+          } else {
+            // Store the deep link to handle after reaching home
+            setPendingDeepLink(url);
+          }
+        }
+      }
+    },
+    [currentScreen],
+  );
+
+  // Set up deep link listeners
+  useEffect(() => {
+    // Handle deep links when app is already open
+    const linkingSubscription = Linking.addEventListener("url", (event) => {
+      handleDeepLink(event.url);
+    });
+
+    // Handle notification taps
+    const notificationSubscription = addNotificationResponseListener((url) => {
+      handleDeepLink(url);
+    });
+
+    // Check for initial deep link (app opened via link)
+    const checkInitialURL = async () => {
+      // Check URL that opened the app
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink(initialUrl);
+      }
+
+      // Check notification that opened the app
+      const notificationDeeplink = await getInitialNotificationDeeplink();
+      if (notificationDeeplink) {
+        handleDeepLink(notificationDeeplink);
+      }
+    };
+
+    checkInitialURL();
+
+    return () => {
+      linkingSubscription.remove();
+      notificationSubscription.remove();
+    };
+  }, [handleDeepLink]);
+
+  // Handle pending deep link when reaching home screen
+  useEffect(() => {
+    if (currentScreen === "home" && pendingDeepLink) {
+      handleDeepLink(pendingDeepLink);
+      setPendingDeepLink(null);
+    }
+  }, [currentScreen, pendingDeepLink, handleDeepLink]);
 
   // Determine initial screen based on subscription status
   useEffect(() => {
