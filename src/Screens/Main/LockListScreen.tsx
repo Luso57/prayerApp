@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,20 +7,42 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
-} from 'react-native';
-import { colors, typography, spacing, borderRadius } from '../../constants/theme';
-import Button from '../../Components/Button';
-
-interface LockedApp {
-  id: string;
-  name: string;
-  icon: string;
-}
+  Alert,
+  Platform,
+} from "react-native";
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+} from "../../constants/theme";
+import Button from "../../Components/Button";
+import ScreenTimeService from "../../Services/ScreenTimeService";
 
 const LockListScreen: React.FC = () => {
-  const [lockedApps, setLockedApps] = useState<LockedApp[]>([]);
+  const [lockedAppsCount, setLockedAppsCount] = useState(0);
+  const [lockedCategoriesCount, setLockedCategoriesCount] = useState(0);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Check authorization status and locked apps on mount
+  useEffect(() => {
+    checkAuthorizationAndLoadApps();
+  }, []);
+
+  const checkAuthorizationAndLoadApps = async () => {
+    if (Platform.OS !== "ios") return;
+
+    const authorized = await ScreenTimeService.isAuthorized();
+    setIsAuthorized(authorized);
+
+    if (authorized) {
+      const counts = await ScreenTimeService.getLockedAppsCount();
+      setLockedAppsCount(counts.appsCount);
+      setLockedCategoriesCount(counts.categoriesCount);
+    }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -38,24 +60,88 @@ const LockListScreen: React.FC = () => {
     ]).start();
   }, []);
 
-  const handleLockApps = () => {
-    // TODO: Implement app selection modal
-    console.log('Open app selector');
-  };
+  const handleLockApps = useCallback(async () => {
+    if (Platform.OS !== "ios") {
+      Alert.alert(
+        "Not Available",
+        "App locking is only available on iOS devices.",
+      );
+      return;
+    }
 
-  const removeApp = (id: string) => {
-    setLockedApps(lockedApps.filter(app => app.id !== id));
-  };
+    // Check if Screen Time is available
+    if (!ScreenTimeService.isAvailable()) {
+      Alert.alert(
+        "Not Available",
+        "Screen Time features are not available on this device.",
+      );
+      return;
+    }
+
+    // Request authorization if not already authorized
+    if (!isAuthorized) {
+      const authorized = await ScreenTimeService.requestAuthorization();
+      if (!authorized) {
+        Alert.alert(
+          "Authorization Required",
+          "Please allow PrayerFirst to access Screen Time in your device settings to lock apps.",
+        );
+        return;
+      }
+      setIsAuthorized(true);
+    }
+
+    // Present the app picker
+    const result = await ScreenTimeService.presentAppPicker();
+
+    if (result && result.success) {
+      setLockedAppsCount(result.appsSelected);
+      setLockedCategoriesCount(result.categoriesSelected);
+
+      if (result.appsSelected > 0 || result.categoriesSelected > 0) {
+        Alert.alert(
+          "Apps Locked! 🔒",
+          `${result.appsSelected} app(s) and ${result.categoriesSelected} category(ies) will be locked until you complete your daily prayer.`,
+        );
+      }
+    }
+  }, [isAuthorized]);
+
+  const handleUnlockAll = useCallback(async () => {
+    Alert.alert(
+      "Unlock All Apps?",
+      "Are you sure you want to remove all app restrictions?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unlock All",
+          style: "destructive",
+          onPress: async () => {
+            await ScreenTimeService.clearRestrictions();
+            setLockedAppsCount(0);
+            setLockedCategoriesCount(0);
+          },
+        },
+      ],
+    );
+  }, []);
+
+  const totalLocked = lockedAppsCount + lockedCategoriesCount;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Apps on hold</Text>
-          <Text style={styles.subtitle}>these apps wait until you've prayed 🙏</Text>
+          <Text style={styles.subtitle}>
+            these apps wait until you've prayed 🙏
+          </Text>
           <Animated.Image
-            source={require('../../../assets/FlyingDoveLeft.png')}
+            source={require("../../../assets/FlyingDoveLeft.png")}
             style={[
               styles.doveImage,
               {
@@ -69,7 +155,7 @@ const LockListScreen: React.FC = () => {
 
         {/* Locked Apps Card */}
         <View style={styles.appsCard}>
-          {lockedApps.length === 0 ? (
+          {totalLocked === 0 ? (
             // Empty State
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
@@ -81,20 +167,26 @@ const LockListScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            // List of locked apps
-            <View style={styles.appsList}>
-              {lockedApps.map((app) => (
-                <View key={app.id} style={styles.appItem}>
-                  <Text style={styles.appIcon}>{app.icon}</Text>
-                  <Text style={styles.appName}>{app.name}</Text>
-                  <TouchableOpacity
-                    onPress={() => removeApp(app.id)}
-                    style={styles.removeButton}
-                  >
-                    <Text style={styles.removeButtonText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+            // Locked apps summary
+            <View style={styles.lockedSummary}>
+              <View style={styles.lockedIcon}>
+                <Text style={styles.lockedIconText}>🔒</Text>
+              </View>
+              <Text style={styles.lockedTitle}>
+                {lockedAppsCount} app{lockedAppsCount !== 1 ? "s" : ""}
+                {lockedCategoriesCount > 0 &&
+                  ` & ${lockedCategoriesCount} categor${lockedCategoriesCount !== 1 ? "ies" : "y"}`}{" "}
+                locked
+              </Text>
+              <Text style={styles.lockedSubtitle}>
+                Complete your daily prayer to unlock
+              </Text>
+              <TouchableOpacity
+                style={styles.unlockButton}
+                onPress={handleUnlockAll}
+              >
+                <Text style={styles.unlockButtonText}>Unlock All</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -105,7 +197,7 @@ const LockListScreen: React.FC = () => {
           <View style={styles.infoContent}>
             <Text style={styles.infoTitle}>How it works</Text>
             <Text style={styles.infoText}>
-              Selected apps will be locked until you complete your daily prayer. 
+              Selected apps will be locked until you complete your daily prayer.
               Start your day with intention!
             </Text>
           </View>
@@ -115,7 +207,7 @@ const LockListScreen: React.FC = () => {
       {/* Bottom Button */}
       <View style={styles.bottomContainer}>
         <Button
-          title="lock apps"
+          title={totalLocked > 0 ? "edit locked apps" : "lock apps"}
           onPress={handleLockApps}
           variant="primary"
           size="lg"
@@ -135,18 +227,18 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    overflow: 'visible',
+    overflow: "visible",
   },
 
   header: {
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
-    overflow: 'visible',
+    overflow: "visible",
     zIndex: 1,
   },
 
   doveImage: {
-    position: 'absolute',
+    position: "absolute",
     top: -50,
     right: -50,
     width: 180,
@@ -155,7 +247,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: typography.size['3xl'],
+    fontSize: typography.size["3xl"],
     fontWeight: typography.weight.bold,
     color: colors.text.primary,
   },
@@ -171,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: spacing.xl,
     marginBottom: spacing.lg,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -181,8 +273,8 @@ const styles = StyleSheet.create({
 
   emptyState: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: spacing.xl,
   },
 
@@ -191,8 +283,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     backgroundColor: colors.background.warmWhite,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: spacing.lg,
   },
 
@@ -210,7 +302,54 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: typography.size.base,
     color: colors.text.secondary,
-    textAlign: 'center',
+    textAlign: "center",
+  },
+
+  lockedSummary: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: spacing.xl,
+  },
+
+  lockedIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary.soft,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: spacing.lg,
+  },
+
+  lockedIconText: {
+    fontSize: 36,
+  },
+
+  lockedTitle: {
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+    textAlign: "center",
+  },
+
+  lockedSubtitle: {
+    fontSize: typography.size.base,
+    color: colors.text.secondary,
+    textAlign: "center",
+    marginBottom: spacing.lg,
+  },
+
+  unlockButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+
+  unlockButtonText: {
+    fontSize: typography.size.sm,
+    color: colors.primary.main,
+    fontWeight: typography.weight.medium,
   },
 
   appsList: {
@@ -218,8 +357,8 @@ const styles = StyleSheet.create({
   },
 
   appItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.background.warmWhite,
     borderRadius: 12,
     padding: spacing.md,
@@ -242,8 +381,8 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: colors.background.cream,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   removeButtonText: {
@@ -252,7 +391,7 @@ const styles = StyleSheet.create({
   },
 
   infoCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: colors.primary.soft,
     borderRadius: 12,
     padding: spacing.md,
