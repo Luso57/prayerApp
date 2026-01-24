@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,20 @@ import {
   Animated,
   Alert,
 } from "react-native";
-import { colors, typography, spacing } from "../../constants/theme";
+import { typography, spacing } from "../../constants/theme";
 import EditProfileModal from "./components/EditProfileModal";
 import ContactUsModal from "./components/ContactUsModal";
+import ThemeModal from "./components/ThemeModal";
 import { useSubscription } from "../../contexts/SubscriptionContext";
+import { useTheme, themes } from "../../contexts/ThemeContext";
 
 const SettingsScreen: React.FC = () => {
+  const { theme, themeName } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showContactUs, setShowContactUs] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const { isPro, presentCustomerCenter, restore } = useSubscription();
@@ -89,6 +95,7 @@ const SettingsScreen: React.FC = () => {
               icon="👤"
               title="Edit Profile"
               onPress={() => setShowEditProfile(true)}
+              styles={styles}
             />
           </View>
         </View>
@@ -102,11 +109,13 @@ const SettingsScreen: React.FC = () => {
               title="Manage Subscription"
               subtitle={isPro ? "PrayerFirst Pro Active" : "Not subscribed"}
               onPress={handleManageSubscription}
+              styles={styles}
             />
             <SettingsItem
               icon="🔄"
               title="Restore Purchases"
               onPress={handleRestorePurchases}
+              styles={styles}
             />
           </View>
         </View>
@@ -116,9 +125,11 @@ const SettingsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>App</Text>
           <View style={styles.card}>
             <SettingsItem
-              icon="🔗"
-              title="Apps Linked with PrayerFirst"
-              onPress={() => console.log("Linked apps")}
+              icon="🎨"
+              title="Theme"
+              subtitle={`${themes[themeName].emoji} ${themes[themeName].name}`}
+              onPress={() => setShowThemeModal(true)}
+              styles={styles}
             />
           </View>
         </View>
@@ -131,6 +142,7 @@ const SettingsScreen: React.FC = () => {
               icon="💬"
               title="Contact Us"
               onPress={() => setShowContactUs(true)}
+              styles={styles}
             />
           </View>
         </View>
@@ -143,11 +155,13 @@ const SettingsScreen: React.FC = () => {
               icon="📄"
               title="Terms & Services"
               onPress={() => console.log("Terms")}
+              styles={styles}
             />
             <SettingsItem
               icon="🔒"
               title="Privacy Policy"
               onPress={() => console.log("Privacy")}
+              styles={styles}
             />
           </View>
         </View>
@@ -168,6 +182,12 @@ const SettingsScreen: React.FC = () => {
         visible={showContactUs}
         onClose={() => setShowContactUs(false)}
       />
+
+      {/* Theme Modal */}
+      <ThemeModal
+        visible={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -178,7 +198,8 @@ const SettingsItem: React.FC<{
   title: string;
   subtitle?: string;
   onPress: () => void;
-}> = ({ icon, title, subtitle, onPress }) => (
+  styles: any;
+}> = ({ icon, title, subtitle, onPress, styles }) => (
   <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
     <Text style={styles.settingsIcon}>{icon}</Text>
     <View style={styles.settingsContent}>
@@ -189,107 +210,108 @@ const SettingsItem: React.FC<{
   </TouchableOpacity>
 );
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.cream,
-  },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.cream,
+    },
 
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
+    scrollView: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
 
-  header: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
+    header: {
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
 
-  doveImage: {
-    position: "absolute",
-    top: -5,
-    right: -50,
-    width: 180,
-    height: 140,
-  },
+    doveImage: {
+      position: "absolute",
+      top: -5,
+      right: -50,
+      width: 180,
+      height: 140,
+    },
 
-  title: {
-    fontSize: typography.size["3xl"],
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-  },
+    title: {
+      fontSize: typography.size["3xl"],
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+    },
 
-  subtitle: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    marginTop: spacing.xs,
-  },
+    subtitle: {
+      fontSize: typography.size.base,
+      color: colors.text.secondary,
+      marginTop: spacing.xs,
+    },
 
-  section: {
-    marginBottom: spacing.lg,
-  },
+    section: {
+      marginBottom: spacing.lg,
+    },
 
-  sectionTitle: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.secondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-    marginLeft: spacing.xs,
-  },
+    sectionTitle: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.semibold,
+      color: colors.text.secondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: spacing.sm,
+      marginLeft: spacing.xs,
+    },
 
-  card: {
-    backgroundColor: colors.ui.white,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
+    card: {
+      backgroundColor: colors.ui.white,
+      borderRadius: 16,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
 
-  settingsItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.background.cream,
-  },
+    settingsItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.background.cream,
+    },
 
-  settingsIcon: {
-    fontSize: 22,
-    marginRight: spacing.md,
-  },
+    settingsIcon: {
+      fontSize: 22,
+      marginRight: spacing.md,
+    },
 
-  settingsContent: {
-    flex: 1,
-  },
+    settingsContent: {
+      flex: 1,
+    },
 
-  settingsTitle: {
-    fontSize: typography.size.base,
-    fontWeight: typography.weight.medium,
-    color: colors.text.primary,
-  },
+    settingsTitle: {
+      fontSize: typography.size.base,
+      fontWeight: typography.weight.medium,
+      color: colors.text.primary,
+    },
 
-  settingsSubtitle: {
-    fontSize: typography.size.sm,
-    color: colors.primary.main,
-    marginTop: 2,
-  },
+    settingsSubtitle: {
+      fontSize: typography.size.sm,
+      color: colors.primary.main,
+      marginTop: 2,
+    },
 
-  settingsArrow: {
-    fontSize: 22,
-    color: colors.text.muted,
-  },
+    settingsArrow: {
+      fontSize: 22,
+      color: colors.text.muted,
+    },
 
-  version: {
-    fontSize: typography.size.sm,
-    color: colors.text.muted,
-    textAlign: "center",
-    marginVertical: spacing.xl,
-  },
-});
+    version: {
+      fontSize: typography.size.sm,
+      color: colors.text.muted,
+      textAlign: "center",
+      marginVertical: spacing.xl,
+    },
+  });
 
 export default SettingsScreen;

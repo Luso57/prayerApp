@@ -6,6 +6,7 @@ import {
   Linking,
   Alert,
 } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import WelcomeScreen from "./Screens/WelcomeScreen";
 import OnboardingFlow from "./Screens/Onboarding/OnboardingFlow";
 import PaywallScreen from "./Screens/PaywallScreen";
@@ -15,6 +16,7 @@ import {
   SubscriptionProvider,
   useSubscription,
 } from "./contexts/SubscriptionContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { colors } from "./constants/theme";
 import {
   ensureNotificationPermission,
@@ -193,9 +195,13 @@ function AppContent() {
 
 export default function App() {
   return (
-    <SubscriptionProvider>
-      <AppContent />
-    </SubscriptionProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <SubscriptionProvider>
+          <AppContent />
+        </SubscriptionProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

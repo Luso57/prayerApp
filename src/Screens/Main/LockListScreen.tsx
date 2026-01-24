@@ -1,16 +1,13 @@
-import {
-  borderRadius,
-  colors,
-  spacing,
-  typography,
-} from "../../constants/theme";
+import { spacing, typography } from "../../constants/theme";
+import { useTheme } from "../../contexts/ThemeContext";
 import {
   lockPickedApps,
   pickAppsToLock,
   requestScreenTimePermission,
   unlockAllApps,
 } from "../../Services/ScreenTimeService";
-import React, { useEffect, useRef, useState } from "react";
+import ScheduleModal from "./components/ScheduleModal";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import {
   Alert,
   Animated,
@@ -24,9 +21,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const LockListScreen: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [lockedAppsCount, setLockedAppsCount] = useState(0);
   const [lockedCategoriesCount, setLockedCategoriesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -111,13 +112,14 @@ const LockListScreen: React.FC = () => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Apps on hold</Text>
-          <Text style={styles.subtitle}>
-            these apps wait until you've prayed 🙏
-          </Text>
+          <View>
+            <Text style={styles.headerLabel}>App Limits</Text>
+            <Text style={styles.title}>Lock Screen 🔐</Text>
+          </View>
           <Animated.View
             style={[
               styles.doveContainer,
@@ -135,307 +137,447 @@ const LockListScreen: React.FC = () => {
           </Animated.View>
         </View>
 
-        {/* Locked Apps Card */}
-        <View style={styles.appsCard}>
-          {totalLocked === 0 ? (
-            // Empty State
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Text style={styles.emptyIconText}>📱</Text>
+        {/* Status Card - shows different state based on locked apps */}
+        {totalLocked > 0 ? (
+          <View style={styles.lockedCard}>
+            <View style={styles.lockedCardHeader}>
+              <Text style={styles.lockedCardLabel}>Currently Locked</Text>
+              <View style={styles.lockedBadge}>
+                <Text style={styles.lockedBadgeText}>{totalLocked}</Text>
               </View>
-              <Text style={styles.emptyTitle}>no apps locked yet</Text>
-              <Text style={styles.emptySubtitle}>
-                select apps to lock until you pray
-              </Text>
             </View>
-          ) : (
-            // Locked apps summary
-            <View style={styles.lockedSummary}>
-              <View style={styles.lockedIcon}>
-                <Text style={styles.lockedIconText}>🔒</Text>
-              </View>
-              <Text style={styles.lockedTitle}>
-                {lockedAppsCount} app{lockedAppsCount !== 1 ? "s" : ""}
-                {lockedCategoriesCount > 0 &&
-                  ` & ${lockedCategoriesCount} categor${lockedCategoriesCount !== 1 ? "ies" : "y"}`}{" "}
-                locked
-              </Text>
-              <Text style={styles.lockedSubtitle}>
-                Complete your daily prayer to unlock
-              </Text>
+            <Text style={styles.lockedCardTitle}>
+              {lockedAppsCount} App{lockedAppsCount !== 1 ? "s" : ""}
+              {lockedCategoriesCount > 0 &&
+                ` & ${lockedCategoriesCount} categor${lockedCategoriesCount !== 1 ? "ies" : "y"}`}
+            </Text>
+            <Text style={styles.lockedCardSubtext}>
+              Complete your daily prayer to unlock
+            </Text>
+            <View style={styles.lockedCardButtons}>
               <TouchableOpacity
-                style={styles.unlockButton}
+                style={styles.editButton}
+                onPress={handleLockApps}
+                disabled={isLoading}
+              >
+                <Text style={styles.editButtonText}>
+                  {isLoading ? "Loading..." : "Edit Apps"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.unlockAllButton}
                 onPress={handleUnlockAll}
               >
-                <Text style={styles.unlockButtonText}>Unlock All</Text>
+                <Text style={styles.unlockAllButtonText}>Unlock All</Text>
               </TouchableOpacity>
             </View>
-          )}
+          </View>
+        ) : (
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIconContainer}>
+              <Text style={styles.emptyIcon}>📱</Text>
+            </View>
+            <Text style={styles.emptyTitle}>No apps locked yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Choose apps to pause until you've completed your prayer
+            </Text>
+            <TouchableOpacity
+              style={styles.lockAppsButton}
+              onPress={handleLockApps}
+              disabled={isLoading}
+            >
+              <Text style={styles.lockAppsButtonText}>
+                {isLoading ? "Loading..." : "Choose Apps to Lock"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Quick Actions Row */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => setShowScheduleModal(true)}
+          >
+            <Text style={styles.actionIcon}>⏰</Text>
+            <Text style={styles.actionTitle}>Schedule</Text>
+            <Text style={styles.actionSubtext}>Set lock times</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionCard}>
+            <Text style={styles.actionIcon}>📊</Text>
+            <Text style={styles.actionTitle}>Usage</Text>
+            <Text style={styles.actionSubtext}>View screen time</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoEmoji}>💡</Text>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>How it works</Text>
-            <Text style={styles.infoText}>
-              Selected apps will be locked until you complete your daily prayer.
-              Start your day with intention!
-            </Text>
+        {/* How It Works Section */}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoSectionTitle}>How it works</Text>
+
+          <View style={styles.infoStep}>
+            <View style={styles.infoStepNumber}>
+              <Text style={styles.infoStepNumberText}>1</Text>
+            </View>
+            <View style={styles.infoStepContent}>
+              <Text style={styles.infoStepTitle}>Select apps</Text>
+              <Text style={styles.infoStepText}>
+                Choose which apps you want to pause during prayer time
+              </Text>
+            </View>
           </View>
+
+          <View style={styles.infoStep}>
+            <View style={styles.infoStepNumber}>
+              <Text style={styles.infoStepNumberText}>2</Text>
+            </View>
+            <View style={styles.infoStepContent}>
+              <Text style={styles.infoStepTitle}>Apps get locked</Text>
+              <Text style={styles.infoStepText}>
+                A gentle reminder screen appears when you try to open them
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoStep}>
+            <View style={styles.infoStepNumber}>
+              <Text style={styles.infoStepNumberText}>3</Text>
+            </View>
+            <View style={styles.infoStepContent}>
+              <Text style={styles.infoStepTitle}>Complete your prayer</Text>
+              <Text style={styles.infoStepText}>
+                Apps unlock automatically after your daily prayer
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Tip Card */}
+        <View style={styles.tipCard}>
+          <Text style={styles.tipIcon}>💡</Text>
+          <Text style={styles.tipText}>
+            <Text style={styles.tipBold}>Pro tip:</Text> Start with just 2-3
+            apps you find most distracting. You can always add more later!
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Bottom Button */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[
-            styles.primaryButton,
-            isLoading && styles.primaryButtonDisabled,
-          ]}
-          onPress={handleLockApps}
-          disabled={isLoading}
-        >
-          <Text style={styles.primaryButtonText}>
-            {isLoading
-              ? "Loading..."
-              : totalLocked > 0
-                ? "edit locked apps"
-                : "lock apps"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Schedule Modal */}
+      <ScheduleModal
+        visible={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+      />
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.cream,
-  },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background.cream,
+    },
 
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    overflow: "visible",
-  },
+    scrollView: {
+      flex: 1,
+    },
 
-  header: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    overflow: "visible",
-    zIndex: 1,
-  },
+    scrollContent: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
 
-  doveContainer: {
-    position: "absolute",
-    top: -50,
-    right: -50,
-    zIndex: 10,
-  },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
+      overflow: "visible",
+      zIndex: 1,
+    },
 
-  doveImage: {
-    width: 180,
-    height: 180,
-  },
+    headerLabel: {
+      fontSize: typography.size.base,
+      color: colors.text.secondary,
+    },
 
-  title: {
-    fontSize: typography.size["3xl"],
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-  },
+    title: {
+      fontSize: typography.size["3xl"],
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+    },
 
-  subtitle: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    marginTop: spacing.xs,
-  },
+    doveContainer: {
+      position: "absolute",
+      top: -20,
+      right: -40,
+      zIndex: 10,
+    },
 
-  appsCard: {
-    backgroundColor: colors.ui.white,
-    borderRadius: 16,
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    minHeight: 200,
-  },
+    doveImage: {
+      width: 140,
+      height: 140,
+    },
 
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: spacing.xl,
-  },
+    // Locked State Card
+    lockedCard: {
+      backgroundColor: colors.primary.main,
+      borderRadius: 16,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
 
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.background.warmWhite,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: spacing.lg,
-  },
+    lockedCardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing.sm,
+    },
 
-  emptyIconText: {
-    fontSize: 36,
-  },
+    lockedCardLabel: {
+      fontSize: typography.size.sm,
+      color: colors.ui.white,
+      opacity: 0.9,
+    },
 
-  emptyTitle: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
+    lockedBadge: {
+      backgroundColor: "rgba(255, 255, 255, 0.25)",
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+    },
 
-  emptySubtitle: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    textAlign: "center",
-  },
+    lockedBadgeText: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.bold,
+      color: colors.ui.white,
+    },
 
-  lockedSummary: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: spacing.xl,
-  },
+    lockedCardTitle: {
+      fontSize: typography.size["2xl"],
+      fontWeight: typography.weight.bold,
+      color: colors.ui.white,
+      marginBottom: spacing.xs,
+    },
 
-  lockedIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary.soft,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: spacing.lg,
-  },
+    lockedCardSubtext: {
+      fontSize: typography.size.sm,
+      color: colors.ui.white,
+      opacity: 0.9,
+      marginBottom: spacing.md,
+    },
 
-  lockedIconText: {
-    fontSize: 36,
-  },
+    lockedCardButtons: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
 
-  lockedTitle: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-    textAlign: "center",
-  },
+    editButton: {
+      flex: 1,
+      backgroundColor: colors.ui.white,
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+    },
 
-  lockedSubtitle: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    textAlign: "center",
-    marginBottom: spacing.lg,
-  },
+    editButtonText: {
+      fontSize: typography.size.base,
+      fontWeight: typography.weight.semibold,
+      color: colors.text.primary,
+    },
 
-  unlockButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
+    unlockAllButton: {
+      flex: 1,
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+    },
 
-  unlockButtonText: {
-    fontSize: typography.size.sm,
-    color: colors.primary.main,
-    fontWeight: typography.weight.medium,
-  },
+    unlockAllButtonText: {
+      fontSize: typography.size.base,
+      fontWeight: typography.weight.semibold,
+      color: colors.ui.white,
+    },
 
-  appsList: {
-    gap: spacing.sm,
-  },
+    // Empty State Card
+    emptyCard: {
+      backgroundColor: colors.ui.white,
+      borderRadius: 16,
+      padding: spacing.lg,
+      marginBottom: spacing.sm,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
 
-  appItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.background.warmWhite,
-    borderRadius: 12,
-    padding: spacing.md,
-  },
+    emptyIconContainer: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.background.cream,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: spacing.sm,
+    },
 
-  appIcon: {
-    fontSize: 24,
-    marginRight: spacing.md,
-  },
+    emptyIcon: {
+      fontSize: 32,
+    },
 
-  appName: {
-    flex: 1,
-    fontSize: typography.size.base,
-    fontWeight: typography.weight.medium,
-    color: colors.text.primary,
-  },
+    emptyTitle: {
+      fontSize: typography.size.base,
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+      marginBottom: 4,
+    },
 
-  removeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.background.cream,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+    emptySubtitle: {
+      fontSize: typography.size.sm,
+      color: colors.text.secondary,
+      textAlign: "center",
+      marginBottom: spacing.md,
+      lineHeight: 18,
+    },
 
-  removeButtonText: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
+    lockAppsButton: {
+      backgroundColor: colors.primary.main,
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      width: "100%",
+      alignItems: "center",
+    },
 
-  infoCard: {
-    flexDirection: "row",
-    backgroundColor: colors.primary.soft,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.xl,
-  },
+    lockAppsButtonText: {
+      fontSize: typography.size.base,
+      fontWeight: typography.weight.semibold,
+      color: colors.ui.white,
+    },
 
-  infoEmoji: {
-    fontSize: 24,
-    marginRight: spacing.md,
-  },
+    // Quick Actions Row
+    actionsRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
 
-  infoContent: {
-    flex: 1,
-  },
+    actionCard: {
+      flex: 1,
+      backgroundColor: colors.ui.white,
+      borderRadius: 14,
+      padding: spacing.md,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
 
-  infoTitle: {
-    fontSize: typography.size.base,
-    fontWeight: typography.weight.semibold,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
+    actionIcon: {
+      fontSize: 24,
+      marginBottom: spacing.xs,
+    },
 
-  infoText: {
-    fontSize: typography.size.sm,
-    color: colors.text.secondary,
-    lineHeight: 20,
-  },
+    actionTitle: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+      marginBottom: 2,
+    },
 
-  bottomContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.background.cream,
-  },
+    actionSubtext: {
+      fontSize: typography.size.xs,
+      color: colors.text.secondary,
+    },
 
-  primaryButton: {
-    backgroundColor: colors.primary.main,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-  },
+    // Info Section
+    infoSection: {
+      backgroundColor: colors.ui.white,
+      borderRadius: 14,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
 
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
+    infoSectionTitle: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+      marginBottom: spacing.sm,
+    },
 
-  primaryButtonText: {
-    color: colors.ui.white,
-    fontSize: typography.size.base,
-    fontWeight: typography.weight.semibold,
-  },
-});
+    infoStep: {
+      flexDirection: "row",
+      marginBottom: spacing.sm,
+    },
+
+    infoStepNumber: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary.soft,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: spacing.sm,
+    },
+
+    infoStepNumberText: {
+      fontSize: typography.size.xs,
+      fontWeight: typography.weight.bold,
+      color: colors.primary.main,
+    },
+
+    infoStepContent: {
+      flex: 1,
+    },
+
+    infoStepTitle: {
+      fontSize: typography.size.xs,
+      fontWeight: typography.weight.semibold,
+      color: colors.text.primary,
+      marginBottom: 1,
+    },
+
+    infoStepText: {
+      fontSize: 12,
+      color: colors.text.secondary,
+      lineHeight: 16,
+    },
+
+    // Tip Card
+    tipCard: {
+      flexDirection: "row",
+      backgroundColor: colors.primary.soft,
+      borderRadius: 12,
+      padding: spacing.sm,
+      alignItems: "flex-start",
+    },
+
+    tipIcon: {
+      fontSize: 16,
+      marginRight: spacing.sm,
+    },
+
+    tipText: {
+      flex: 1,
+      fontSize: 12,
+      color: colors.text.secondary,
+      lineHeight: 17,
+    },
+
+    tipBold: {
+      fontWeight: typography.weight.semibold,
+      color: colors.text.primary,
+    },
+  });
 
 export default LockListScreen;
