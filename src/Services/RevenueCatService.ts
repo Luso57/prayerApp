@@ -8,7 +8,7 @@ import Purchases, {
 
 // RevenueCat API Keys
 const API_KEYS = {
-  ios: "test_ynmKBaotnZMYqFcmDDQFqrgYwsR",
+  ios: "appl_iGhWlGbnoskoUolqxliVFHglypX",
   android: "test_ynmKBaotnZMYqFcmDDQFqrgYwsR",
 };
 
@@ -19,8 +19,8 @@ export const ENTITLEMENTS = {
 
 // Product identifiers
 export const PRODUCTS = {
-  MONTHLY: "monthly",
-  YEARLY: "yearly",
+  MONTHLY: "prayerfirst.monthly.subscription",
+  YEARLY: "prayerfirst.yearly.subscription",
 } as const;
 
 export type EntitlementKey = keyof typeof ENTITLEMENTS;
