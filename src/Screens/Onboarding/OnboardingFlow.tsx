@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   OnboardingData,
   AgeOption,
@@ -6,18 +6,29 @@ import {
   PrayerStruggleOption,
   PrayerStyleOption,
   initialOnboardingData,
-} from '../../types/onboarding';
+} from "../../types/onboarding";
 
 // Import steps
-import NameStep from './steps/NameStep';
-import AgeStep from './steps/AgeStep';
-import PrayerLifeStep from './steps/PrayerLifeStep';
-import PrayerStruggleStep from './steps/PrayerStruggleStep';
-import PrayerStyleStep from './steps/PrayerStyleStep';
+import NameStep from "./steps/NameStep";
+import AgeStep from "./steps/AgeStep";
+import PrayerLifeStep from "./steps/PrayerLifeStep";
+import PrayerStruggleStep from "./steps/PrayerStruggleStep";
+import PrayerStyleStep from "./steps/PrayerStyleStep";
 
-type OnboardingStep = 'name' | 'age' | 'prayerLife' | 'prayerStruggle' | 'prayerStyle';
+type OnboardingStep =
+  | "name"
+  | "age"
+  | "prayerLife"
+  | "prayerStruggle"
+  | "prayerStyle";
 
-const STEPS: OnboardingStep[] = ['name', 'age', 'prayerLife', 'prayerStruggle', 'prayerStyle'];
+const STEPS: OnboardingStep[] = [
+  "name",
+  "age",
+  "prayerLife",
+  "prayerStruggle",
+  "prayerStyle",
+];
 const TOTAL_STEPS = STEPS.length;
 
 interface OnboardingFlowProps {
@@ -25,7 +36,10 @@ interface OnboardingFlowProps {
   onBack: () => void; // Go back to welcome screen
 }
 
-const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) => {
+const OnboardingFlow: React.FC<OnboardingFlowProps> = ({
+  onComplete,
+  onBack,
+}) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [data, setData] = useState<OnboardingData>(initialOnboardingData);
 
@@ -67,7 +81,9 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
   };
 
   // Handle prayer struggles selection
-  const handlePrayerStruggleSubmit = (prayerStruggles: PrayerStruggleOption[]) => {
+  const handlePrayerStruggleSubmit = (
+    prayerStruggles: PrayerStruggleOption[],
+  ) => {
     setData((prev) => ({ ...prev, prayerStruggles }));
     goToNextStep();
   };
@@ -82,7 +98,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
   // Render current step
   const renderStep = () => {
     switch (currentStep) {
-      case 'name':
+      case "name":
         return (
           <NameStep
             value={data.name}
@@ -93,7 +109,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'age':
+      case "age":
         return (
           <AgeStep
             value={data.age}
@@ -104,7 +120,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'prayerLife':
+      case "prayerLife":
         return (
           <PrayerLifeStep
             value={data.prayerLife}
@@ -115,7 +131,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'prayerStruggle':
+      case "prayerStruggle":
         return (
           <PrayerStruggleStep
             value={data.prayerStruggles}
@@ -126,7 +142,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, onBack }) =
           />
         );
 
-      case 'prayerStyle':
+      case "prayerStyle":
         return (
           <PrayerStyleStep
             value={data.prayerStyle}

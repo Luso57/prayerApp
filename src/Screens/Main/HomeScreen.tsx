@@ -16,6 +16,7 @@ import {
   Modal,
   AppState,
   AppStateStatus,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { typography, spacing } from "../../constants/theme";
@@ -23,6 +24,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import VerseService from "../../Services/VerseService";
 import StreakService from "../../Services/StreakService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getLockStatus, LockStatus } from "../../Services/ScreenTimeService";
 
 const USER_NAME_KEY = "@user_name";
 
@@ -40,7 +42,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const [verse, setVerse] = useState({ verse: "", reference: "" });
   const [displayName, setDisplayName] = useState(userName);
-  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showVerseModal, setShowVerseModal] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [lastPrayerTime, setLastPrayerTime] = useState<string>("Never");
@@ -50,23 +52,40 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const bounceAnim = useRef(new Animated.Value(50)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  // Stats data - streak is real, others are mock for now
-  const stats = {
-    totalPrayers: 47,
-    totalTimeMinutes: 142,
-    currentStreak: currentStreak,
-    longestStreak: longestStreak,
-    weeklyCompleted: 3,
-    weeklyGoal: 7,
-    averageDuration: "3 min",
-    favoriteTime: "Morning",
-  };
+  // Lock status state
+  const [isAppsLocked, setIsAppsLocked] = useState(false);
+  const [lockedSinceTime, setLockedSinceTime] = useState<string | null>(null);
 
-  // Mock data - will be replaced with real data later
-  const isAppsLocked = true;
-  const lockedSinceTime = "9:12 PM";
-  const prayerFocus = "Morning Gratitude";
-  const suggestedDuration = "2 minutes";
+  // Format lock time for display
+  const formatLockTime = useCallback((timestamp: number): string => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }, []);
+
+  // Load lock status from native module
+  const loadLockStatus = useCallback(async () => {
+    if (Platform.OS !== "ios") {
+      setIsAppsLocked(false);
+      return;
+    }
+
+    try {
+      const status = await getLockStatus();
+      setIsAppsLocked(status.isLocked);
+      if (status.isLocked && status.lockedAt) {
+        setLockedSinceTime(formatLockTime(status.lockedAt));
+      } else {
+        setLockedSinceTime(null);
+      }
+    } catch (error) {
+      console.log("Error loading lock status:", error);
+      setIsAppsLocked(false);
+    }
+  }, [formatLockTime]);
 
   // Generate week days (Mon-Sun) with completion status
   const generateWeekDays = useCallback((prayerHistory: Set<string>) => {
@@ -172,17 +191,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       }
 
       await loadPrayerData();
+      await loadLockStatus();
     };
     loadData();
-  }, [loadPrayerData]);
+  }, [loadPrayerData, loadLockStatus]);
 
-  // Refresh prayer data when app comes back to foreground
+  // Refresh prayer data and lock status when app comes back to foreground
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
       (nextAppState: AppStateStatus) => {
         if (nextAppState === "active") {
           loadPrayerData();
+          loadLockStatus();
         }
       },
     );
@@ -190,7 +211,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
     return () => {
       subscription.remove();
     };
-  }, [loadPrayerData]);
+  }, [loadPrayerData, loadLockStatus]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -241,14 +262,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
               {currentStreak === 0 ? "Start praying!" : "Keep it going!"}
             </Text>
           </View>
-          {/* Stats Card */}
+          {/* Verse Card */}
           <TouchableOpacity
-            style={styles.halfCard}
-            onPress={() => setShowStatsModal(true)}
+            style={styles.halfCardStreak}
+            activeOpacity={0.8}
+            onPress={() => setShowVerseModal(true)}
           >
-            <Text style={styles.halfCardIcon}>📊</Text>
-            <Text style={styles.halfCardTitle}>Stats</Text>
-            <Text style={styles.halfCardSubtext}>View your progress</Text>
+            <Text style={styles.halfCardIcon}>✨</Text>
+            <Text style={styles.halfCardTitle}>Today's Verse</Text>
+            <Text style={styles.halfCardSubtext} numberOfLines={2}>
+              {verse.reference || "Loading..."}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -293,27 +317,44 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           </View>
         </View>
 
-        {/* Apps Locked Card */}
-        {isAppsLocked && (
-          <View style={styles.lockedCard}>
-            <Text style={styles.lockedLabel}>Your apps are locked</Text>
-            <Text style={styles.startPrayerTitle}>🙏 Start Prayer</Text>
-            <TouchableOpacity
-              style={styles.startPrayerButton}
-              onPress={onStartPrayer}
-            >
-              <Text style={styles.startPrayerButtonText}>Start Prayer</Text>
-            </TouchableOpacity>
-            <Text style={styles.lockedSubtext}>
-              Complete a prayer to unlock your apps.
-            </Text>
-            <TouchableOpacity style={styles.lockedSinceButton}>
-              <Text style={styles.lockedSinceText}>
-                Locked since {lockedSinceTime} {">"}
+        {/* Prayer Card - Always visible */}
+        <View style={styles.lockedCard}>
+          {isAppsLocked ? (
+            <>
+              <Text style={styles.lockedLabel}>Your apps are locked</Text>
+              <Text style={styles.startPrayerTitle}>🙏 Start Prayer</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.lockedLabel}>Ready to pray?</Text>
+              <Text style={styles.startPrayerTitle}>🙏 Start Prayer</Text>
+            </>
+          )}
+          <TouchableOpacity
+            style={styles.startPrayerButton}
+            onPress={onStartPrayer}
+          >
+            <Text style={styles.startPrayerButtonText}>Start Prayer</Text>
+          </TouchableOpacity>
+          {isAppsLocked ? (
+            <>
+              <Text style={styles.lockedSubtext}>
+                Complete a prayer to unlock your apps.
               </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              {lockedSinceTime && (
+                <TouchableOpacity style={styles.lockedSinceButton}>
+                  <Text style={styles.lockedSinceText}>
+                    Locked since {lockedSinceTime} {">"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <Text style={styles.lockedSubtext}>
+              Take a moment to connect with God.
+            </Text>
+          )}
+        </View>
 
         {/* Daily Verse
         <View style={styles.verseCard}>
@@ -323,17 +364,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         </View> */}
       </ScrollView>
 
-      {/* Stats Modal */}
+      {/* Verse Modal */}
       <Modal
-        visible={showStatsModal}
+        visible={showVerseModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setShowStatsModal(false)}
+        onRequestClose={() => setShowVerseModal(false)}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowStatsModal(false)}
+          onPress={() => setShowVerseModal(false)}
         >
           <TouchableOpacity
             style={styles.modalContent}
@@ -341,48 +382,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             onPress={() => {}}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Your Prayer Stats</Text>
-              <TouchableOpacity onPress={() => setShowStatsModal(false)}>
+              <Text style={styles.modalTitle}>✨ Today's Verse</Text>
+              <TouchableOpacity onPress={() => setShowVerseModal(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.totalPrayers}</Text>
-                <Text style={styles.statLabel}>Total Prayers</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.totalTimeMinutes}</Text>
-                <Text style={styles.statLabel}>Minutes Prayed</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.currentStreak}</Text>
-                <Text style={styles.statLabel}>Current Streak 🔥</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.longestStreak}</Text>
-                <Text style={styles.statLabel}>Longest Streak</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {stats.weeklyCompleted}/{stats.weeklyGoal}
-                </Text>
-                <Text style={styles.statLabel}>This Week</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.averageDuration}</Text>
-                <Text style={styles.statLabel}>Avg Duration</Text>
-              </View>
-            </View>
+            <Text style={styles.verseText}>"{verse.verse}"</Text>
+            <Text style={styles.verseReference}>— {verse.reference}</Text>
 
-            <View style={styles.statHighlight}>
-              <Text style={styles.statHighlightIcon}>☀️</Text>
-              <Text style={styles.statHighlightText}>
-                You pray most often in the{" "}
-                <Text style={styles.statHighlightBold}>
-                  {stats.favoriteTime}
-                </Text>
+            <View style={styles.widgetHint}>
+              <Text style={styles.widgetHintText}>
+                💡 Add the Daily Verse widget to your home screen!
               </Text>
             </View>
           </TouchableOpacity>
@@ -445,7 +456,7 @@ const createStyles = (colors: any) =>
     lockedCard: {
       backgroundColor: colors.primary.main,
       borderRadius: 16,
-      padding: spacing.md,
+      padding: spacing.xl,
       marginBottom: spacing.md,
     },
 
@@ -500,7 +511,7 @@ const createStyles = (colors: any) =>
     todaysPrayerCard: {
       backgroundColor: colors.ui.white,
       borderRadius: 16,
-      padding: spacing.lg,
+      padding: spacing.xl,
       marginBottom: spacing.md,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
@@ -605,20 +616,20 @@ const createStyles = (colors: any) =>
       flex: 1,
       backgroundColor: colors.primary.soft,
       borderRadius: 16,
-      padding: spacing.md,
+      padding: spacing.lg,
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 120,
+      minHeight: 140,
     },
 
     halfCardStreak: {
       flex: 1,
       backgroundColor: colors.ui.white,
       borderRadius: 16,
-      padding: spacing.md,
+      padding: spacing.lg,
       alignItems: "center",
       justifyContent: "center",
-      minHeight: 120,
+      minHeight: 140,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,
@@ -687,6 +698,19 @@ const createStyles = (colors: any) =>
     verseReference: {
       fontSize: typography.size.sm,
       color: colors.text.muted,
+    },
+
+    widgetHint: {
+      marginTop: spacing.lg,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.ui.border,
+    },
+
+    widgetHintText: {
+      fontSize: typography.size.sm,
+      color: colors.text.muted,
+      textAlign: "center" as const,
     },
 
     // Stats Modal Styles

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 const THEME_STORAGE_KEY = "@app_theme";
 
@@ -262,6 +263,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       if (savedTheme && themes[savedTheme as ThemeName]) {
         setThemeName(savedTheme as ThemeName);
       }
+
+      // Sync current theme to native on app start
+      if (Platform.OS === "ios") {
+        try {
+          const { saveThemeForShield } =
+            await import("../Services/ScreenTimeService");
+          await saveThemeForShield(savedTheme || "default");
+        } catch (e) {
+          console.log("Could not sync theme to native:", e);
+        }
+      }
     } catch (error) {
       console.error("Error loading theme:", error);
     }
@@ -271,6 +283,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, name);
       setThemeName(name);
+
+      // Sync theme to native for Shield extension
+      if (Platform.OS === "ios") {
+        try {
+          const { saveThemeForShield } =
+            await import("../Services/ScreenTimeService");
+          await saveThemeForShield(name);
+        } catch (e) {
+          console.log("Could not sync theme to native:", e);
+        }
+      }
     } catch (error) {
       console.error("Error saving theme:", error);
     }

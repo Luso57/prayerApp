@@ -12,6 +12,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import PrayerService from "../../Services/PrayerService";
 import StreakService from "../../Services/StreakService";
 import JournalEntryModal from "../../Components/JournalEntryModal";
+import { unlockAllApps } from "../../Services/ScreenTimeService";
 
 interface PrayerScreenProps {
   categoryId: string;
@@ -73,6 +74,15 @@ const PrayerScreen: React.FC<PrayerScreenProps> = ({ categoryId, onExit }) => {
     try {
       // Record the prayer completion for streak tracking
       await StreakService.recordPrayerCompletion();
+
+      // Unlock all shielded apps
+      try {
+        await unlockAllApps();
+        console.log("Apps unlocked after prayer completion");
+      } catch (unlockError) {
+        console.log("No apps to unlock or unlock failed:", unlockError);
+      }
+
       // Show completion screen instead of exiting immediately
       setShowCompletionScreen(true);
     } catch (error) {

@@ -8,14 +8,17 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  Alert,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { typography, spacing } from "../../../constants/theme";
 import { useTheme } from "../../../contexts/ThemeContext";
+import ScheduleService from "../../../Services/ScheduleService";
 
 interface ScheduleModalProps {
   visible: boolean;
   onClose: () => void;
+  onSave?: () => void;
 }
 
 interface ScheduleOption {
@@ -31,6 +34,16 @@ interface CustomTime {
   time: Date;
   label: string;
 }
+
+const DAYS_OF_WEEK = [
+  { id: 0, label: "S", name: "Sun" },
+  { id: 1, label: "M", name: "Mon" },
+  { id: 2, label: "T", name: "Tue" },
+  { id: 3, label: "W", name: "Wed" },
+  { id: 4, label: "T", name: "Thu" },
+  { id: 5, label: "F", name: "Fri" },
+  { id: 6, label: "S", name: "Sat" },
+];
 
 const DEFAULT_SCHEDULES: ScheduleOption[] = [
   {
@@ -63,15 +76,114 @@ const DEFAULT_SCHEDULES: ScheduleOption[] = [
   },
 ];
 
-const ScheduleModal: React.FC<ScheduleModalProps> = ({ visible, onClose }) => {
+const ScheduleModal: React.FC<ScheduleModalProps> = ({
+  visible,
+  onClose,
+  onSave,
+}) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
   const [viewMode, setViewMode] = useState<"preset" | "custom">("preset");
   const [customTimes, setCustomTimes] = useState<CustomTime[]>([]);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [editingTimeId, setEditingTimeId] = useState<string | null>(null);
   const [tempTime, setTempTime] = useState(new Date());
+
+  const toggleDay = (dayId: number) => {
+    setSelectedDays((prev) =>
+      prev.includes(dayId) ? prev.filter((d) => d !== dayId) : [...prev, dayId],
+    );
+  };
+
+  const parseTimeString = (timeStr: string): Date => {
+    const date = new Date();
+    const [time, period] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":").map(Number);
+
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
+
+  const handleSavePreset = async () => {
+    if (selectedSchedules.length === 0) {
+      Alert.alert(
+        "No Schedule Selected",
+        "Please select at least one prayer time.",
+      );
+      return;
+    }
+
+    if (selectedDays.length === 0) {
+      Alert.alert("No Days Selected", "Please select at least one day.");
+      return;
+    }
+
+    try {
+      for (const scheduleId of selectedSchedules) {
+        const preset = DEFAULT_SCHEDULES.find((s) => s.id === scheduleId);
+        if (preset) {
+          await ScheduleService.saveSchedule({
+            name: preset.label,
+            time: parseTimeString(preset.time),
+            daysOfWeek: selectedDays,
+            enabled: true,
+            appTokens: [],
+            isCustom: false,
+            icon: preset.icon,
+          });
+        }
+      }
+
+      Alert.alert(
+        "Schedule Saved",
+        "Your prayer schedule has been created. Now select apps to lock.",
+      );
+      onSave?.();
+      onClose();
+    } catch (error) {
+      Alert.alert("Error", "Failed to save schedule. Please try again.");
+    }
+  };
+
+  const handleSaveCustom = async () => {
+    if (customTimes.length === 0) {
+      Alert.alert("No Times Added", "Please add at least one prayer time.");
+      return;
+    }
+
+    if (selectedDays.length === 0) {
+      Alert.alert("No Days Selected", "Please select at least one day.");
+      return;
+    }
+
+    try {
+      for (const customTime of customTimes) {
+        await ScheduleService.saveSchedule({
+          name: customTime.label || formatTime(customTime.time),
+          time: customTime.time,
+          daysOfWeek: selectedDays,
+          enabled: true,
+          appTokens: [],
+          isCustom: true,
+          icon: "⏰",
+        });
+      }
+
+      Alert.alert(
+        "Schedule Saved",
+        "Your custom prayer times have been created.",
+      );
+      onSave?.();
+      onClose();
+    } catch (error) {
+      Alert.alert("Error", "Failed to save custom schedule. Please try again.");
+    }
+  };
 
   const toggleSchedule = (id: string) => {
     setSelectedSchedules((prev) =>
@@ -138,6 +250,32 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ visible, onClose }) => {
         Choose when your apps should lock until you pray
       </Text>
 
+      {/* Day Selector */}
+      <View style={styles.daySelectorContainer}>
+        <Text style={styles.daySelectorLabel}>Repeat on:</Text>
+        <View style={styles.daySelector}>
+          {DAYS_OF_WEEK.map((day) => (
+            <TouchableOpacity
+              key={day.id}
+              style={[
+                styles.dayButton,
+                selectedDays.includes(day.id) && styles.dayButtonSelected,
+              ]}
+              onPress={() => toggleDay(day.id)}
+            >
+              <Text
+                style={[
+                  styles.dayButtonText,
+                  selectedDays.includes(day.id) && styles.dayButtonTextSelected,
+                ]}
+              >
+                {day.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <ScrollView
         style={styles.scheduleList}
         showsVerticalScrollIndicator={false}
@@ -197,13 +335,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ visible, onClose }) => {
         <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={() => {
-            // TODO: Save schedule logic
-            onClose();
-          }}
-        >
+        <TouchableOpacity style={styles.saveButton} onPress={handleSavePreset}>
           <Text style={styles.saveButtonText}>Save Schedule</Text>
         </TouchableOpacity>
       </View>
@@ -228,6 +360,32 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ visible, onClose }) => {
       <Text style={styles.subtitle}>
         Add your preferred prayer times throughout the day
       </Text>
+
+      {/* Day Selector */}
+      <View style={styles.daySelectorContainer}>
+        <Text style={styles.daySelectorLabel}>Repeat on:</Text>
+        <View style={styles.daySelector}>
+          {DAYS_OF_WEEK.map((day) => (
+            <TouchableOpacity
+              key={day.id}
+              style={[
+                styles.dayButton,
+                selectedDays.includes(day.id) && styles.dayButtonSelected,
+              ]}
+              onPress={() => toggleDay(day.id)}
+            >
+              <Text
+                style={[
+                  styles.dayButtonText,
+                  selectedDays.includes(day.id) && styles.dayButtonTextSelected,
+                ]}
+              >
+                {day.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       <ScrollView
         style={styles.scheduleList}
@@ -279,13 +437,7 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ visible, onClose }) => {
         >
           <Text style={styles.cancelButtonText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={() => {
-            // TODO: Save custom schedule logic
-            onClose();
-          }}
-        >
+        <TouchableOpacity style={styles.saveButton} onPress={handleSaveCustom}>
           <Text style={styles.saveButtonText}>Save Custom Times</Text>
         </TouchableOpacity>
       </View>
@@ -374,6 +526,49 @@ const createStyles = (colors: any) =>
       color: colors.text.secondary,
       marginBottom: spacing.md,
       lineHeight: 18,
+    },
+
+    daySelectorContainer: {
+      marginBottom: spacing.md,
+    },
+
+    daySelectorLabel: {
+      fontSize: typography.size.sm,
+      color: colors.text.secondary,
+      marginBottom: spacing.xs,
+      fontWeight: typography.weight.medium,
+    },
+
+    daySelector: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: spacing.xs,
+    },
+
+    dayButton: {
+      flex: 1,
+      aspectRatio: 1,
+      borderRadius: 20,
+      backgroundColor: colors.background.cream,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: "transparent",
+    },
+
+    dayButtonSelected: {
+      backgroundColor: colors.primary.main,
+      borderColor: colors.primary.main,
+    },
+
+    dayButtonText: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.semibold,
+      color: colors.text.secondary,
+    },
+
+    dayButtonTextSelected: {
+      color: colors.ui.white,
     },
 
     scheduleList: {

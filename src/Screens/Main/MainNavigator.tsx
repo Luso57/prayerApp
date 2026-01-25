@@ -19,10 +19,10 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { name: "home", label: "home", icon: "🏠", activeIcon: "🏠" },
-  { name: "journal", label: "journal", icon: "📓", activeIcon: "📓" },
-  { name: "lockList", label: "lock list", icon: "🔒", activeIcon: "🔓" },
-  { name: "settings", label: "settings", icon: "⚙️", activeIcon: "⚙️" },
+  { name: "home", label: "PRAY", icon: "🙏", activeIcon: "🙏" },
+  { name: "journal", label: "JOURNAL", icon: "📓", activeIcon: "📓" },
+  { name: "lockList", label: "SHIELD", icon: "🔒", activeIcon: "🔓" },
+  { name: "settings", label: "SETTINGS", icon: "⚙️", activeIcon: "⚙️" },
 ];
 
 interface MainNavigatorProps {

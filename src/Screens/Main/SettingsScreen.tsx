@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Animated,
   Alert,
+  Linking,
 } from "react-native";
 import { typography, spacing } from "../../constants/theme";
 import EditProfileModal from "./components/EditProfileModal";
@@ -15,6 +16,7 @@ import ContactUsModal from "./components/ContactUsModal";
 import ThemeModal from "./components/ThemeModal";
 import { useSubscription } from "../../contexts/SubscriptionContext";
 import { useTheme, themes } from "../../contexts/ThemeContext";
+import { LEGAL_URLS } from "../../constants/legal";
 
 const SettingsScreen: React.FC = () => {
   const { theme, themeName } = useTheme();
@@ -62,6 +64,24 @@ const SettingsScreen: React.FC = () => {
         "We couldn't find any previous purchases associated with your account.",
       );
     }
+  };
+
+  const openExternalUrl = async (url: string, title: string) => {
+    if (!url || url.includes("yourdomain.com")) {
+      Alert.alert(
+        "Link not set",
+        `Please add a valid ${title} URL in src/constants/legal.ts before release.`,
+      );
+      return;
+    }
+
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      Alert.alert("Unable to open link", "Please try again later.");
+      return;
+    }
+
+    await Linking.openURL(url);
   };
 
   return (
@@ -154,13 +174,15 @@ const SettingsScreen: React.FC = () => {
             <SettingsItem
               icon="📄"
               title="Terms & Services"
-              onPress={() => console.log("Terms")}
+              onPress={() => openExternalUrl(LEGAL_URLS.terms, "Terms")}
               styles={styles}
             />
             <SettingsItem
               icon="🔒"
               title="Privacy Policy"
-              onPress={() => console.log("Privacy")}
+              onPress={() =>
+                openExternalUrl(LEGAL_URLS.privacy, "Privacy Policy")
+              }
               styles={styles}
             />
           </View>

@@ -1,26 +1,32 @@
-import React from 'react';
+import React, { useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Linking,
-} from 'react-native';
-import { colors, typography, spacing, borderRadius } from '../../../constants/theme';
+} from "react-native";
+import { typography, spacing, borderRadius } from "../../../constants/theme";
+import { useTheme } from "../../../contexts/ThemeContext";
 
 interface ContactUsModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const ContactUsModal: React.FC<ContactUsModalProps> = ({ visible, onClose }) => {
-  const email = 'shopveronco@gmail.com';
+const ContactUsModal: React.FC<ContactUsModalProps> = ({
+  visible,
+  onClose,
+}) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const email = "shopveronco@gmail.com";
 
   const handleEmailPress = () => {
     Linking.openURL(`mailto:${email}`);
   };
 
-  if (!visible) return null;
+  if (!visible || !theme) return null;
 
   return (
     <View style={styles.overlay}>
@@ -41,7 +47,10 @@ const ContactUsModal: React.FC<ContactUsModalProps> = ({ visible, onClose }) => 
             Have questions or feedback? We'd love to hear from you!
           </Text>
           <Text style={styles.label}>Reach out to us at:</Text>
-          <TouchableOpacity onPress={handleEmailPress} style={styles.emailButton}>
+          <TouchableOpacity
+            onPress={handleEmailPress}
+            style={styles.emailButton}
+          >
             <Text style={styles.emailText}>{email}</Text>
           </TouchableOpacity>
         </View>
@@ -55,112 +64,113 @@ const ContactUsModal: React.FC<ContactUsModalProps> = ({ visible, onClose }) => 
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    overlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+    },
 
-  modal: {
-    backgroundColor: colors.background.cream,
-    borderRadius: borderRadius.xl,
-    width: '85%',
-    maxWidth: 400,
-    padding: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
+    modal: {
+      backgroundColor: colors.background.cream,
+      borderRadius: borderRadius.xl,
+      width: "85%",
+      maxWidth: 400,
+      padding: spacing.lg,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.25,
+      shadowRadius: 20,
+      elevation: 10,
+    },
 
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing.lg,
+    },
 
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background.cream,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background.cream,
+      justifyContent: "center",
+      alignItems: "center",
+    },
 
-  closeButtonText: {
-    fontSize: 16,
-    color: colors.text.secondary,
-  },
+    closeButtonText: {
+      fontSize: 16,
+      color: colors.text.secondary,
+    },
 
-  title: {
-    fontSize: typography.size.xl,
-    fontWeight: typography.weight.bold,
-    color: colors.text.primary,
-  },
+    title: {
+      fontSize: typography.size.xl,
+      fontWeight: typography.weight.bold,
+      color: colors.text.primary,
+    },
 
-  placeholder: {
-    width: 32,
-  },
+    placeholder: {
+      width: 32,
+    },
 
-  content: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
+    content: {
+      alignItems: "center",
+      marginBottom: spacing.xl,
+    },
 
-  emoji: {
-    fontSize: 48,
-    marginBottom: spacing.md,
-  },
+    emoji: {
+      fontSize: 48,
+      marginBottom: spacing.md,
+    },
 
-  message: {
-    fontSize: typography.size.base,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-    lineHeight: 22,
-  },
+    message: {
+      fontSize: typography.size.base,
+      color: colors.text.secondary,
+      textAlign: "center",
+      marginBottom: spacing.lg,
+      lineHeight: 22,
+    },
 
-  label: {
-    fontSize: typography.size.sm,
-    color: colors.text.muted,
-    marginBottom: spacing.sm,
-  },
+    label: {
+      fontSize: typography.size.sm,
+      color: colors.text.muted,
+      marginBottom: spacing.sm,
+    },
 
-  emailButton: {
-    backgroundColor: colors.primary.soft,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-  },
+    emailButton: {
+      backgroundColor: colors.primary.soft,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      borderRadius: borderRadius.lg,
+    },
 
-  emailText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.primary.main,
-  },
+    emailText: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.semibold,
+      color: colors.primary.main,
+    },
 
-  doneButton: {
-    backgroundColor: colors.primary.main,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
+    doneButton: {
+      backgroundColor: colors.primary.main,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      alignItems: "center",
+    },
 
-  doneButtonText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.background.cream,
-  },
-});
+    doneButtonText: {
+      fontSize: typography.size.sm,
+      fontWeight: typography.weight.semibold,
+      color: colors.background.cream,
+    },
+  });
 
 export default ContactUsModal;
