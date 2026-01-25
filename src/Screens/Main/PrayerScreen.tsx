@@ -13,6 +13,7 @@ import PrayerService from "../../Services/PrayerService";
 import StreakService from "../../Services/StreakService";
 import JournalEntryModal from "../../Components/JournalEntryModal";
 import { unlockAllApps } from "../../Services/ScreenTimeService";
+import { maybeRequestReview } from "../../Services/ReviewService";
 
 interface PrayerScreenProps {
   categoryId: string;
@@ -74,6 +75,9 @@ const PrayerScreen: React.FC<PrayerScreenProps> = ({ categoryId, onExit }) => {
     try {
       // Record the prayer completion for streak tracking
       await StreakService.recordPrayerCompletion();
+
+      // Opportunistically ask for a review after a meaningful moment
+      await maybeRequestReview();
 
       // Unlock all shielded apps
       try {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { typography, spacing } from "../../constants/theme";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -8,6 +8,8 @@ import SettingsScreen from "./SettingsScreen";
 import PrayerScreen from "./PrayerScreen";
 import PrayerCategoryScreen from "./PrayerCategoryScreen";
 import JournalScreen from "./JournalScreen";
+import ScheduleService from "../../Services/ScheduleService";
+import { syncPrayerReminders } from "../../Services/NotificationService";
 
 type TabName = "home" | "journal" | "lockList" | "settings";
 
@@ -19,10 +21,10 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { name: "home", label: "PRAY", icon: "🙏", activeIcon: "🙏" },
-  { name: "journal", label: "JOURNAL", icon: "📓", activeIcon: "📓" },
-  { name: "lockList", label: "SHIELD", icon: "🔒", activeIcon: "🔓" },
-  { name: "settings", label: "SETTINGS", icon: "⚙️", activeIcon: "⚙️" },
+  { name: "home", label: "Pray", icon: "🙏", activeIcon: "🙏" },
+  { name: "journal", label: "Journal", icon: "📓", activeIcon: "📓" },
+  { name: "lockList", label: "Schedule", icon: "🔒", activeIcon: "🔓" },
+  { name: "settings", label: "Settings", icon: "⚙️", activeIcon: "⚙️" },
 ];
 
 interface MainNavigatorProps {
@@ -38,6 +40,15 @@ const MainNavigator: React.FC<MainNavigatorProps> = ({ userName }) => {
     useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [homeRefreshKey, setHomeRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const syncReminders = async () => {
+      const loaded = await ScheduleService.loadSchedules();
+      await syncPrayerReminders(loaded);
+    };
+
+    syncReminders();
+  }, []);
 
   const renderScreen = () => {
     switch (activeTab) {

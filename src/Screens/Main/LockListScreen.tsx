@@ -9,6 +9,7 @@ import {
   stopSchedule,
   stopAllSchedules,
 } from "../../Services/ScreenTimeService";
+import { syncPrayerReminders } from "../../Services/NotificationService";
 import ScheduleService, {
   PrayerSchedule,
 } from "../../Services/ScheduleService";
@@ -42,6 +43,7 @@ const LockListScreen: React.FC = () => {
   const loadSchedules = async () => {
     const loaded = await ScheduleService.loadSchedules();
     setSchedules(loaded);
+    await syncPrayerReminders(loaded);
   };
 
   useEffect(() => {

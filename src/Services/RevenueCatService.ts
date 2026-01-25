@@ -133,9 +133,7 @@ export async function getSubscriptionPackages(): Promise<{
 /**
  * Purchase a specific package
  */
-export async function purchasePackage(
-  pkg: PurchasesPackage,
-): Promise<{
+export async function purchasePackage(pkg: PurchasesPackage): Promise<{
   success: boolean;
   customerInfo: CustomerInfo | null;
   error?: string;
@@ -321,7 +319,7 @@ export async function getActiveSubscriptionDetails(): Promise<{
       isActive: true,
       productIdentifier: proEntitlement.productIdentifier,
       expirationDate: proEntitlement.expirationDate,
-      willRenew: !proEntitlement.willRenew === false,
+      willRenew: Boolean(proEntitlement.willRenew),
     };
   } catch (error) {
     console.error("Failed to get subscription details:", error);
