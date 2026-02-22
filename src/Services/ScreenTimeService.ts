@@ -26,6 +26,11 @@ export async function pickAppsToLock(): Promise<boolean> {
   return AppLockModule.pickApps();
 }
 
+export async function pickAppsForSchedule(scheduleId: string): Promise<number> {
+  assertIOS();
+  return AppLockModule.pickAppsForSchedule(scheduleId);
+}
+
 // MARK: - DeviceActivity Schedule Methods
 
 /**
@@ -38,6 +43,7 @@ export async function startSchedule(
   startMinute: number,
   endHour: number,
   endMinute: number,
+  daysOfWeek: number[],
 ): Promise<boolean> {
   assertIOS();
   return AppLockModule.startSchedule(
@@ -46,6 +52,7 @@ export async function startSchedule(
     startMinute,
     endHour,
     endMinute,
+    daysOfWeek,
   );
 }
 
