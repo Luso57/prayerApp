@@ -6,12 +6,11 @@ import Purchases, {
   PurchasesPackage,
   LOG_LEVEL,
 } from "react-native-purchases";
-import { REVENUECAT_API_KEY_IOS, REVENUECAT_API_KEY_ANDROID } from '@env';
 
-// RevenueCat API Keys (from .env)
+// RevenueCat API Keys
 const API_KEYS = {
-  ios: REVENUECAT_API_KEY_IOS,
-  android: REVENUECAT_API_KEY_ANDROID,
+  ios: "appl_iGhWlGbnoskoUolqxliVFHglypX",
+  android: "test_ynmKBaotnZMYqFcmDDQFqrgYwsR",
 };
 
 // Entitlement identifiers configured in RevenueCat dashboard
