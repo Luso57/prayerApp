@@ -8,7 +8,7 @@ import Purchases, {
 
 // RevenueCat API Keys
 const API_KEYS = {
-  ios: "test_ynmKBaotnZMYqFcmDDQFqrgYwsR",
+  ios: "appl_iGhWlGbnoskoUolqxliVFHglypX",
   android: "test_ynmKBaotnZMYqFcmDDQFqrgYwsR",
 };
 
@@ -37,6 +37,11 @@ export async function initializeRevenueCat(appUserId?: string): Promise<void> {
     }
 
     const apiKey = Platform.OS === "ios" ? API_KEYS.ios : API_KEYS.android;
+    if (!__DEV__ && apiKey.startsWith("test_")) {
+      throw new Error(
+        "RevenueCat is configured with a test API key in a non-development build.",
+      );
+    }
 
     await Purchases.configure({
       apiKey,

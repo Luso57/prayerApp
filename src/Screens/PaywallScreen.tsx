@@ -173,7 +173,7 @@ const PaywallScreen: React.FC<PaywallScreenProps> = ({
                   onPress={() => setSelectedPackage(packages.yearly)}
                 >
                   <View style={styles.popularBadge}>
-                    <Text style={styles.popularText}>BEST VALUE</Text>
+                    <Text style={styles.popularText}>Best Value</Text>
                   </View>
                   <Text style={styles.priceLabel}>Yearly</Text>
                   <Text style={styles.priceAmount}>
@@ -313,7 +313,8 @@ const styles = StyleSheet.create({
   },
 
   features: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
+    gap: 2,
   },
 
   featureItem: {

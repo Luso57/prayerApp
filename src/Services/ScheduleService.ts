@@ -120,62 +120,40 @@ class ScheduleService {
     if (enabled.length === 0) return null;
 
     const now = new Date();
-    const today = now.getDay(); // 0-6
-
-    let nextSchedule: PrayerSchedule | null = null;
-    let nextTime: Date | null = null;
+    let next: { schedule: PrayerSchedule; time: Date } | null = null;
 
     for (const schedule of enabled) {
-      // Check if schedule applies today
-      if (!schedule.daysOfWeek.includes(today)) continue;
-
-      // Create a date object for today with schedule's time
-      const scheduleTime = new Date(now);
       const scheduleDate = new Date(schedule.time);
-      scheduleTime.setHours(
-        scheduleDate.getHours(),
-        scheduleDate.getMinutes(),
-        0,
-        0,
-      );
+      const scheduleHour = scheduleDate.getHours();
+      const scheduleMinute = scheduleDate.getMinutes();
 
-      // If the time hasn't passed yet today
-      if (scheduleTime > now) {
-        if (!nextTime || scheduleTime < nextTime) {
-          nextTime = scheduleTime;
-          nextSchedule = schedule;
+      for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+        const candidate = new Date(now);
+        candidate.setDate(now.getDate() + dayOffset);
+
+        // Keep Sunday=0 ... Saturday=6 to match stored schedule days.
+        const candidateWeekday = candidate.getDay();
+        if (!schedule.daysOfWeek.includes(candidateWeekday)) {
+          continue;
         }
+
+        candidate.setHours(scheduleHour, scheduleMinute, 0, 0);
+
+        // "Next" must be in the future.
+        if (candidate <= now) {
+          continue;
+        }
+
+        if (!next || candidate < next.time) {
+          next = { schedule, time: candidate };
+        }
+
+        // Found the earliest valid day for this schedule.
+        break;
       }
     }
 
-    // If no schedule found today, look for tomorrow's first schedule
-    if (!nextSchedule) {
-      const tomorrow = (today + 1) % 7;
-      for (const schedule of enabled) {
-        if (schedule.daysOfWeek.includes(tomorrow)) {
-          const scheduleTime = new Date(now);
-          scheduleTime.setDate(scheduleTime.getDate() + 1);
-          const scheduleDate = new Date(schedule.time);
-          scheduleTime.setHours(
-            scheduleDate.getHours(),
-            scheduleDate.getMinutes(),
-            0,
-            0,
-          );
-
-          if (!nextTime || scheduleTime < nextTime) {
-            nextTime = scheduleTime;
-            nextSchedule = schedule;
-          }
-        }
-      }
-    }
-
-    if (nextSchedule && nextTime) {
-      return { schedule: nextSchedule, time: nextTime };
-    }
-
-    return null;
+    return next;
   }
 
   async clearAllSchedules(): Promise<void> {

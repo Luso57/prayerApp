@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, JSX } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { colors, typography, spacing } from '../constants/theme';

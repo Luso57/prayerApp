@@ -3,6 +3,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   lockPickedApps,
   pickAppsToLock,
+  pickAppsForSchedule,
   requestScreenTimePermission,
   unlockAllApps,
   startSchedule,
@@ -55,13 +56,24 @@ const LockListScreen: React.FC = () => {
     setSelectedScheduleId(scheduleId);
     try {
       await requestScreenTimePermission();
-      await pickAppsToLock();
+      const selectedCount = await pickAppsForSchedule(scheduleId);
 
       // Find the schedule to get its time
       const schedule = schedules.find((s) => s.id === scheduleId);
       if (schedule) {
+        if (selectedCount <= 0) {
+          Alert.alert(
+            "No Apps Selected",
+            "Choose at least one app to lock for this schedule.",
+          );
+          return;
+        }
+
         // Mark schedule as having apps selected
-        schedule.appTokens = ["selected"]; // The actual tokens are stored in App Group
+        schedule.appTokens = Array.from(
+          { length: selectedCount },
+          (_, i) => `selected_${i}`,
+        );
         await ScheduleService.saveSchedule(schedule);
 
         // Start the DeviceActivity schedule
@@ -80,6 +92,7 @@ const LockListScreen: React.FC = () => {
           startMinute,
           endHour,
           endMinute,
+          schedule.daysOfWeek,
         );
 
         console.log(
@@ -145,6 +158,7 @@ const LockListScreen: React.FC = () => {
             startMinute,
             endHour,
             endMinute,
+            schedule.daysOfWeek,
           );
           console.log(`[Schedule] Re-enabled schedule: ${scheduleId}`);
         } else {
